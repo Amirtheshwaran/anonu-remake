@@ -50,31 +50,31 @@ const DUMMY_POSTS = [
   },
   {
     id: '3',
-    content: 'PSA: Free pizza in the student union building right now! First come first served 🍕',
+    content: 'PSA: Free pizza in the Hackers Guild Convention right now! First come first served 🍕',
     anonymousId: 'Anonymous789',
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
     likes: 89,
     comments: 15,
-    tags: ['freefood', 'pizza', 'studentunion'],
+    tags: ['freefood', 'pizza', 'HGC'],
     isLiked: false,
     images: [
-      'https://images.unsplash.com/photo-1513104890138-7c749659a591?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80'
+      'https://cdn.discordapp.com/attachments/1100436593317257248/1344979735935193129/PXL_20250223_095648552.jpg?ex=67c2e17d&is=67c18ffd&hm=ab5cd9dd8b438737e6bda067e7669422dbb2d9bc2bf602ac9fd7c48207109620&'
     ]
   },
   {
     id: '4',
-    content: 'Does anyone have notes from Professor Johnson\'s Calculus lecture today? I missed class because of a doctor\'s appointment.',
+    content: 'Does anyone have notes from Professor Saad\'s DAA lecture today? I missed class because of a doctor\'s appointment.',
     anonymousId: 'Anonymous234',
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
     likes: 12,
     comments: 7,
-    tags: ['notes', 'calculus', 'help'],
+    tags: ['notes', 'DAA', 'help'],
     isLiked: false,
     images: []
   },
   {
     id: '5',
-    content: 'The sunset from the top of the science building tonight was absolutely incredible! 🌅',
+    content: 'The sunset from the top of the university building tonight was absolutely incredible! 🌅',
     anonymousId: 'Anonymous567',
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
     likes: 143,
@@ -82,18 +82,17 @@ const DUMMY_POSTS = [
     tags: ['sunset', 'campus', 'views'],
     isLiked: true,
     images: [
-      'https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80',
-      'https://images.unsplash.com/photo-1507608616759-54f48f0af0ee?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80'
+      'https://cdn.discordapp.com/attachments/1100436593317257248/1344979432867364874/PXL_20241013_1228172082.jpg?ex=67c2e135&is=67c18fb5&hm=130086d68b16119f46d5a741b2242bf6b9c59d19ec266929080fa326cc9ff9ea&'
     ]
   },
   {
     id: '6',
-    content: 'Anyone know if the gym is open late tonight? The website says it closes at 10pm but I heard they extended hours for finals week.',
+    content: 'Anyone know if the library is open late tonight? The website says it closes at 10pm but I heard they extended hours for finals week.',
     anonymousId: 'Anonymous890',
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
     likes: 8,
     comments: 4,
-    tags: ['gym', 'campus', 'question'],
+    tags: ['library', 'campus', 'question'],
     isLiked: false,
     images: []
   }
@@ -760,27 +759,27 @@ export default function HomeScreen() {
 
   return (
     <ThemedView variant="default" style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <ThemedText weight="bold" style={styles.headerTitle}>
-            AnonU
-          </ThemedText>
-          <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.headerButton}>
-              <MaterialCommunityIcons 
-                name="bell-outline" 
-                size={24} 
-                color={theme.text} 
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
-        <SearchBar
-          placeholder="Search posts, tags, or users"
-          onChangeText={handleSearch}
-          value={searchQuery}
+<View style={styles.header}>
+  <View style={styles.headerContent}>
+    <ThemedText weight="bold" style={styles.headerTitle}>
+      anonU
+    </ThemedText>
+    <View style={styles.headerActions}>
+      <TouchableOpacity style={styles.headerButton}>
+        <MaterialCommunityIcons 
+          name="bell-outline" 
+          size={24} 
+          color={theme.text} 
         />
-      </View>
+      </TouchableOpacity>
+    </View>
+  </View>
+  <SearchBar
+    placeholder="Search posts, tags, or users"
+    onChangeText={handleSearch}
+    value={searchQuery}
+  />
+</View>
       
       <FlatList
         data={posts}

@@ -268,11 +268,11 @@ export default function PostScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <ThemedText weight="bold" style={styles.headerTitle}>
-            Create Post
-          </ThemedText>
-        </View>
+<View style={styles.header}>
+  <ThemedText weight="bold" style={styles.headerTitle}>
+    Create Post
+  </ThemedText>
+</View>
         
         <View style={[styles.postTypeContainer, { backgroundColor: theme.cardBg }]}>
           <TouchableOpacity

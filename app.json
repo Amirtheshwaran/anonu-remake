@@ -1,36 +1,44 @@
 {
   "expo": {
-    "name": "Inkognito",
-    "slug": "inkognito",
+    "name": "anonU",
+    "slug": "anonu",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "inkognito",
+    "scheme": "anonu",
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1da1f2"
+      "backgroundColor": "#1A1A2E"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.inkognito.app"
+      "bundleIdentifier": "com.anonu.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#1da1f2"
+        "backgroundColor": "#1A1A2E"
       },
-      "package": "com.inkognito.app"
+      "package": "com.anonu.app"
     },
     "plugins": [
       "expo-router"
     ],
-    "description": "Anonymous Twitter-like application for campus settings",
-    "primaryColor": "#1da1f2",
-    "newArchEnabled": true
+    "description": "anonU - Anonymous social platform for campus settings",
+    "primaryColor": "#5E60CE",
+    "newArchEnabled": true,
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "8084f26f-586c-4d69-88df-5ecc9dca119c"
+      }
+    }
   }
 }

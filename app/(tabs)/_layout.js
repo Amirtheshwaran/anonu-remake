@@ -48,25 +48,11 @@ export default function TabLayout() {
         tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: theme.textSecondary,
         tabBarShowLabel: false,
-        headerStyle: {
-          backgroundColor: theme.background,
-          borderBottomWidth: 1,
-          borderBottomColor: theme.border,
-          elevation: 0,
-          shadowOpacity: 0,
-        },
-        headerTintColor: theme.text,
-        headerTitleStyle: {
-          fontWeight: '600',
-          fontSize: 18,
-          color: theme.text,
-        },
-        headerShadowVisible: false,
+        headerShown: false,
       }}>
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Feed',
           tabBarIcon: ({ color, size, focused }) => (
             <MaterialCommunityIcons 
               name={focused ? "home" : "home-outline"} 
@@ -79,7 +65,6 @@ export default function TabLayout() {
       <Tabs.Screen
         name="search"
         options={{
-          title: 'Search',
           tabBarIcon: ({ color, size, focused }) => (
             <MaterialCommunityIcons 
               name="magnify" 
@@ -92,7 +77,6 @@ export default function TabLayout() {
       <Tabs.Screen
         name="post"
         options={{
-          title: 'Post',
           tabBarIcon: ({ color, size }) => (
             <View style={{
               width: 56,
@@ -136,7 +120,6 @@ export default function TabLayout() {
       <Tabs.Screen
         name="messages"
         options={{
-          title: 'Messages',
           tabBarIcon: ({ color, size, focused }) => (
             <MaterialCommunityIcons 
               name={focused ? "message-text" : "message-text-outline"} 
@@ -149,7 +132,6 @@ export default function TabLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Settings',
           tabBarIcon: ({ color, size, focused }) => (
             <MaterialCommunityIcons 
               name={focused ? "cog" : "cog-outline"} 

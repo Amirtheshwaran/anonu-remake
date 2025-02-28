@@ -22,7 +22,7 @@ const ThemedView = ({
   const theme = Colors[colorScheme ?? 'dark'];
 
   const getBackgroundColor = () => {
-    // Only apply background color for specific variants
+    // Apply background color based on variant
     switch (variant) {
       case 'card':
         return theme.cardBg;
@@ -30,6 +30,8 @@ const ThemedView = ({
         return theme.surface;
       case 'elevated':
         return theme.surfaceHover;
+      case 'default':
+        return theme.background;
       default:
         return 'transparent';
     }
