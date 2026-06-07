@@ -1,0 +1,80 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isModerator() {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isModerator == true;
+    }
+
+    match /users/{uid} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid)
+        && !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['uid', 'pseudonym', 'isModerator', 'email']);
+      allow delete: if false;
+    }
+
+    match /posts/{postId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.authorUid == request.auth.uid;
+      allow update: if isSignedIn()
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['upvotes', 'downvotes', 'commentCount', 'repostCount', 'poll', 'isHidden']);
+      allow delete: if isModerator();
+
+      match /votes/{uid} {
+        allow read: if isOwner(uid);
+        allow create, update, delete: if isOwner(uid);
+      }
+
+      match /comments/{commentId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn()
+          && request.resource.data.authorUid == request.auth.uid;
+        allow update: if isSignedIn()
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['upvotes', 'downvotes']);
+        allow delete: if isModerator();
+      }
+
+      match /pollVotes/{uid} {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && !exists(/databases/$(database)/documents/posts/$(postId)/pollVotes/$(uid));
+        allow update, delete: if false;
+      }
+    }
+
+    match /moodBoard/{entryId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly(['mood', 'createdAt']);
+      allow update, delete: if false;
+    }
+
+    match /notifications/{notifId} {
+      allow read: if isSignedIn()
+        && resource.data.recipientUid == request.auth.uid;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn()
+        && resource.data.recipientUid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
+      allow delete: if false;
+    }
+
+    match /reports/{reportId} {
+      allow create: if isSignedIn();
+      allow read, update, delete: if isModerator();
+    }
+  }
+}
