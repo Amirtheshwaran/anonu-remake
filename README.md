@@ -1,121 +1,88 @@
-# AnonU — Anonymous Campus Microblogging Platform
+# AnonU
 
-Flutter + Firebase. Dark theme. Per-post identity toggle. YikYak-style pseudonyms.
+AnonU is a Flutter/Firebase campus microblog app. The idea is simple: students can post anonymously or under their own name on a post-by-post basis, browse campus posts, vote, comment, repost, answer polls, and check in on a shared mood board.
 
-## Features
+This started as an InkognitoApp project and is being rebuilt into AnonU.
 
-- **Per-post identity toggle** — post as "Cyan Kestrel" (anonymous) or your real name, per post
-- **Hot / New / Top feed** — hot uses a time-decay score (HN-style)
-- **Upvote / Downvote** — posts auto-hide at −5 score
-- **Polls** with expiry times
-- **Image upload** (up to 4 per post)
-- **Time-limited posts** (1h / 6h / 12h / 24h / 48h)
-- **Tags** with search
-- **Reposts** (always anonymous)
-- **Nested comments** with identity toggle
-- **Campus Mood Board** — anonymous emoji check-ins with streak tracking
-- **Notifications** — upvotes, comments, reposts
-- **Report system** with moderator tools
-- **Firestore security rules** — votes subcollection prevents de-anonymization
+## What is in the app
 
-## Setup
+- Email/password auth through Firebase
+- Anonymous posting with generated pseudonyms
+- Optional real-name posting
+- Hot, New, and Top feeds
+- Upvotes and downvotes
+- Poll posts with expiry times
+- Image posts, up to 4 images
+- Post expiry options: 1h, 6h, 12h, 24h, or 48h
+- Tags and tag search
+- Reposts
+- Nested comments
+- Campus mood board with streaks
+- Notifications for post activity
+- Reports and basic moderator tooling
+- Firestore and Storage rules
 
-### 1. Firebase project
+## Running it locally
 
-1. Go to [Firebase Console](https://console.firebase.google.com)
-2. Create a new project → **AnonU**
-3. Enable **Authentication** → Email/Password
-4. Enable **Firestore Database** → Start in production mode
-5. Enable **Firebase Storage**
-6. Enable **Firebase Messaging** (for push notifications)
+Install dependencies:
 
-### 2. Add Firebase to Flutter
+```bash
+flutter pub get
+```
+
+Configure Firebase for your project:
 
 ```bash
 dart pub global activate flutterfire_cli
 flutterfire configure
 ```
 
-This generates `lib/firebase_options.dart`. Then update `main.dart`:
+That should generate `lib/firebase_options.dart`.
 
-```dart
-import 'firebase_options.dart';
-
-await Firebase.initializeApp(
-  options: DefaultFirebaseOptions.currentPlatform,
-);
-```
-
-### 3. Install dependencies
-
-```bash
-flutter pub get
-```
-
-### 4. Deploy Firestore rules
-
-```bash
-firebase deploy --only firestore:rules
-```
-
-### 5. Run
+Run the app:
 
 ```bash
 flutter run
 ```
 
-## Firestore Data Model
+For web:
 
+```bash
+flutter run -d chrome
 ```
+
+## Firebase setup
+
+In Firebase, enable:
+
+- Authentication: Email/Password
+- Firestore Database
+- Firebase Storage
+- Firebase Messaging, if push notifications are being used
+
+Then deploy the rules:
+
+```bash
+firebase deploy --only firestore:rules,storage
+```
+
+## Main collections
+
+```text
 /users/{uid}
-  email, pseudonym, displayName?, avatarUrl?,
-  postCount, upvotesReceived,
-  currentStreak, longestStreak, lastMoodCheckIn?, lastMood?,
-  joinedAt, isModerator
-
 /posts/{postId}
-  authorUid, identity, pseudonym, displayName?, avatarUrl?,
-  content, type, tags[], imageUrls[],
-  poll?: { options[], votes{}, endsAt },
-  upvotes, downvotes, commentCount, repostCount,
-  createdAt, expiresAt?,
-  isHidden, isRepost, originalPostId?, originalAuthorPseudonym?
-
-  /votes/{uid}          ← only readable by owner (prevents de-anon)
-    isUpvote, uid
-
-  /comments/{commentId}
-    postId, authorUid, identity, pseudonym, displayName?,
-    content, upvotes, downvotes, createdAt, parentCommentId?
-
-  /pollVotes/{uid}      ← immutable after creation
-    optionIndex
-
+/posts/{postId}/votes/{uid}
+/posts/{postId}/comments/{commentId}
+/posts/{postId}/pollVotes/{uid}
 /moodBoard/{entryId}
-  mood, createdAt        ← no uid stored in readable form
-
 /notifications/{notifId}
-  recipientUid, type, actorPseudonym, postId?, postPreview?,
-  isRead, createdAt
-
 /reports/{reportId}
-  postId, reportedBy, reason, createdAt, resolved
 ```
 
-## Privacy Architecture
+Votes live in a subcollection so users can update their own vote without exposing the full voter list to other clients. Mood board entries do not store a readable user id.
 
-- Users authenticate with email but posts are **architecturally decoupled** from their UID in public data
-- Anonymous posts use a pseudonym generated from `hash(uid + postId)` — same user gets same pseudonym within a thread, different pseudonym across posts
-- Vote subcollection is **only readable by the voter** — Firestore rules prevent any client from enumerating who voted on what
-- Mood board stores only the emoji label, never the UID in a readable field
-- Firestore security rules block any field updates that could re-link anonymous content to a user
+## Notes
 
-## Recommended Next Steps
+Anonymous posts still have to be tied to an authenticated account internally so voting, reports, moderation, and abuse prevention can work. The important part is that public-facing post data uses pseudonyms instead of exposing the user's account identity.
 
-- Add **Firebase Cloud Functions** for:
-  - Auto-hide posts at vote threshold (server-side)
-  - Push notifications on upvote/comment
-  - Scheduled cleanup of expired posts
-- Add **Algolia or Typesense** for full-text search (current search is tag-based only)
-- Add **image moderation** via Google Cloud Vision API
-- Add **email domain allowlist** in Auth (restrict to your university domain)
+Full-text search, production push notification fanout, scheduled cleanup for expired posts, and image moderation are better handled with backend services such as Cloud Functions and a search provider.
