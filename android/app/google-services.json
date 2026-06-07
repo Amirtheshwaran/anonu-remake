@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "312541537240",
+    "project_id": "anonu-63972",
+    "storage_bucket": "anonu-63972.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:312541537240:android:75c8d780adfe9e79eec8ad",
+        "android_client_info": {
+          "package_name": "com.example.anonu"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "312541537240-7jj8qmuid60h4u5st6t05clon6npqic1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCTyEjqNlP6Q_ZELq2W_-8ZctmnyhfFD1Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "312541537240-7jj8qmuid60h4u5st6t05clon6npqic1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
