@@ -1,40 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:anonu/core/theme/app_theme.dart';
+import 'package:anonu/core/widgets/brutalist_widgets.dart';
 import 'package:anonu/shared/models/post_model.dart';
 
-// ── Tag Chip ──────────────────────────────────────────────────────────────────
+// ── Neo-Brutalist Tag Chip ──────────────────────────────────────────────────
 class TagChip extends StatelessWidget {
   final String tag;
   final VoidCallback? onTap;
+  final Color backgroundColor;
 
-  const TagChip({super.key, required this.tag, this.onTap});
+  const TagChip({
+    super.key,
+    required this.tag,
+    this.onTap,
+    this.backgroundColor = AnonUTheme.popCyan,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return BrutalistBadge(
+      label: '#$tag',
+      backgroundColor: backgroundColor,
+      textColor: AnonUTheme.black,
+      borderColor: AnonUTheme.black,
+      borderWidth: 2.0,
+      fontSize: 11,
+      hasShadow: true,
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: AnonUTheme.maroon.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AnonUTheme.maroon.withOpacity(0.3), width: 0.5),
-        ),
-        child: Text(
-          '#$tag',
-          style: const TextStyle(
-            color: AnonUTheme.maroonLight,
-            fontSize: 11.5,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
     );
   }
 }
 
-// ── Poll Widget ───────────────────────────────────────────────────────────────
+// ── Neo-Brutalist Poll Widget ───────────────────────────────────────────────
 class PollWidget extends StatelessWidget {
   final PollData poll;
   final Function(int)? onVote;
@@ -52,89 +50,145 @@ class PollWidget extends StatelessWidget {
         ...List.generate(poll.options.length, (i) {
           final votes = poll.votes[i.toString()] ?? 0;
           final pct = total > 0 ? votes / total : 0.0;
+          final pctString = '${(pct * 100).round()}%';
 
           return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.only(bottom: 10),
             child: GestureDetector(
               onTap: (!expired && onVote != null) ? () => onVote!(i) : null,
-              child: Stack(
-                children: [
-                  // Background fill
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 400),
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AnonUTheme.surfaceVariant,
-                      borderRadius: BorderRadius.circular(8),
+              child: Container(
+                height: 46,
+                decoration: BoxDecoration(
+                  color: AnonUTheme.bgCream,
+                  borderRadius: BorderRadius.circular(AnonUTheme.radiusSm),
+                  border: Border.all(color: AnonUTheme.black, width: AnonUTheme.borderWidthThin),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: AnonUTheme.black,
+                      offset: Offset(2.5, 2.5),
+                      blurRadius: 0,
                     ),
-                  ),
-                  // Progress fill
-                  AnimatedFractionallySizedBox(
-                    duration: const Duration(milliseconds: 400),
-                    widthFactor: pct,
-                    child: Container(
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: AnonUTheme.maroon.withOpacity(0.25),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                  // Label
-                  Positioned.fill(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              poll.options[i],
-                              style: const TextStyle(
-                                color: AnonUTheme.textPrimary,
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AnonUTheme.radiusSm - 2),
+                  child: Stack(
+                    children: [
+                      // Animated Brutalist Meter Fill
+                      AnimatedFractionallySizedBox(
+                        duration: const Duration(milliseconds: 400),
+                        curve: Curves.easeOutCubic,
+                        widthFactor: pct.clamp(0.0, 1.0),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: AnonUTheme.popMint,
+                            border: pct > 0
+                                ? const Border(
+                                    right: BorderSide(
+                                      color: AnonUTheme.black,
+                                      width: AnonUTheme.borderWidthThin,
+                                    ),
+                                  )
+                                : null,
                           ),
-                          if (total > 0)
-                            Text(
-                              '${(pct * 100).round()}%',
-                              style: const TextStyle(
-                                color: AnonUTheme.textSecondary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                        ],
+                        ),
                       ),
-                    ),
+                      // Text Label & Percentage
+                      Positioned.fill(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 22,
+                                height: 22,
+                                decoration: BoxDecoration(
+                                  color: AnonUTheme.black,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  String.fromCharCode(65 + i), // A, B, C, D
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  poll.options[i],
+                                  style: const TextStyle(
+                                    color: AnonUTheme.black,
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (total > 0)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AnonUTheme.black,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    pctString,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           );
         }),
-        Row(
-          children: [
-            Text(
-              '$total vote${total == 1 ? '' : 's'}',
-              style: const TextStyle(
-                color: AnonUTheme.textMuted,
-                fontSize: 11.5,
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AnonUTheme.bgCream,
+                  border: Border.all(color: AnonUTheme.black, width: 1.5),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  '$total VOTE${total == 1 ? '' : 'S'}',
+                  style: const TextStyle(
+                    color: AnonUTheme.black,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                  ),
+                ),
               ),
-            ),
-            const Spacer(),
-            if (expired)
-              const Text(
-                'Poll ended',
-                style: TextStyle(color: AnonUTheme.textMuted, fontSize: 11.5),
-              )
-            else
+              const Spacer(),
               Text(
-                'Ends ${_formatExpiry(poll.endsAt)}',
-                style: const TextStyle(color: AnonUTheme.textMuted, fontSize: 11.5),
+                expired ? 'POLL CLOSED' : 'ENDS ${_formatExpiry(poll.endsAt)}',
+                style: TextStyle(
+                  color: expired ? AnonUTheme.downvoteRed : AnonUTheme.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                ),
               ),
-          ],
+            ],
+          ),
         ),
       ],
     );
@@ -142,13 +196,14 @@ class PollWidget extends StatelessWidget {
 
   String _formatExpiry(DateTime dt) {
     final diff = dt.difference(DateTime.now());
-    if (diff.inDays > 0) return 'in ${diff.inDays}d';
-    if (diff.inHours > 0) return 'in ${diff.inHours}h';
-    return 'in ${diff.inMinutes}m';
+    if (diff.isNegative) return 'JUST NOW';
+    if (diff.inDays > 0) return 'IN ${diff.inDays}D';
+    if (diff.inHours > 0) return 'IN ${diff.inHours}H';
+    return 'IN ${diff.inMinutes}M';
   }
 }
 
-// ── Image Grid ────────────────────────────────────────────────────────────────
+// ── Neo-Brutalist Image Grid ────────────────────────────────────────────────
 class ImageGrid extends StatelessWidget {
   final List<String> urls;
 
@@ -157,58 +212,141 @@ class ImageGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (urls.isEmpty) return const SizedBox.shrink();
-    if (urls.length == 1) return _SingleImage(url: urls[0]);
 
-    return GridView.count(
+    if (urls.length == 1) {
+      return _BrutalistImageFrame(
+        url: urls[0],
+        height: 220,
+        onTap: () => _openFullscreen(context, urls, 0),
+      );
+    }
+
+    return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: urls.length == 2 ? 2 : 2,
-      mainAxisSpacing: 4,
-      crossAxisSpacing: 4,
-      childAspectRatio: 1,
-      children: urls
-          .take(4)
-          .map((url) => _GridImage(url: url, hasMore: urls.length > 4))
-          .toList(),
+      itemCount: urls.take(4).length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+        childAspectRatio: 1.25,
+      ),
+      itemBuilder: (context, i) {
+        return _BrutalistImageFrame(
+          url: urls[i],
+          onTap: () => _openFullscreen(context, urls, i),
+        );
+      },
+    );
+  }
+
+  void _openFullscreen(BuildContext context, List<String> images, int initialIndex) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _FullscreenImageViewer(images: images, initialIndex: initialIndex),
+      ),
     );
   }
 }
 
-class _SingleImage extends StatelessWidget {
+class _BrutalistImageFrame extends StatelessWidget {
   final String url;
-  const _SingleImage({required this.url});
+  final double? height;
+  final VoidCallback? onTap;
+
+  const _BrutalistImageFrame({required this.url, this.height, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(10),
-      child: CachedNetworkImage(
-        imageUrl: url,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: 220,
-        placeholder: (_, __) => Container(
-          height: 220,
-          color: AnonUTheme.surfaceVariant,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: height,
+        decoration: BoxDecoration(
+          color: AnonUTheme.bgCream,
+          borderRadius: BorderRadius.circular(AnonUTheme.radiusSm),
+          border: Border.all(color: AnonUTheme.black, width: AnonUTheme.borderWidthThin),
+          boxShadow: const [
+            BoxShadow(
+              color: AnonUTheme.black,
+              offset: Offset(2.5, 2.5),
+              blurRadius: 0,
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AnonUTheme.radiusSm - 2),
+          child: CachedNetworkImage(
+            imageUrl: url,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: height ?? double.infinity,
+            placeholder: (_, __) => Container(
+              color: const Color(0xFFE5E2D9),
+              child: const Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AnonUTheme.black,
+                ),
+              ),
+            ),
+            errorWidget: (_, __, ___) => Container(
+              color: const Color(0xFFE5E2D9),
+              child: const Icon(Icons.broken_image_rounded, color: AnonUTheme.black),
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
-class _GridImage extends StatelessWidget {
-  final String url;
-  final bool hasMore;
-  const _GridImage({required this.url, required this.hasMore});
+class _FullscreenImageViewer extends StatefulWidget {
+  final List<String> images;
+  final int initialIndex;
+
+  const _FullscreenImageViewer({required this.images, required this.initialIndex});
+
+  @override
+  State<_FullscreenImageViewer> createState() => _FullscreenImageViewerState();
+}
+
+class _FullscreenImageViewerState extends State<_FullscreenImageViewer> {
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: CachedNetworkImage(
-        imageUrl: url,
-        fit: BoxFit.cover,
-        placeholder: (_, __) => Container(color: AnonUTheme.surfaceVariant),
+    return Scaffold(
+      backgroundColor: AnonUTheme.black,
+      appBar: AppBar(
+        backgroundColor: AnonUTheme.black,
+        foregroundColor: Colors.white,
+        title: Text(
+          'IMAGE ${_currentIndex + 1}/${widget.images.length}',
+          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+        ),
+      ),
+      body: PageView.builder(
+        itemCount: widget.images.length,
+        controller: PageController(initialPage: widget.initialIndex),
+        onPageChanged: (i) => setState(() => _currentIndex = i),
+        itemBuilder: (context, i) {
+          return Center(
+            child: InteractiveViewer(
+              child: CachedNetworkImage(
+                imageUrl: widget.images[i],
+                fit: BoxFit.contain,
+              ),
+            ),
+          );
+        },
       ),
     );
   }

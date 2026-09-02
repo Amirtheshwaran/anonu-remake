@@ -1,12 +1,14 @@
 import 'dart:math';
+import 'package:flutter/material.dart';
 import 'package:anonu/core/constants/constants.dart';
+import 'package:anonu/core/theme/app_theme.dart';
 
 class PseudonymService {
   static final Random _random = Random();
 
   /// Generates a deterministic pseudonym from a UID + postId combo.
   /// Same user always gets same pseudonym within a post thread,
-  /// but different pseudonym across different posts.
+  /// but a different pseudonym across different posts.
   static String generateForPost(String uid, String postId) {
     final seed = uid.hashCode ^ postId.hashCode;
     final r = Random(seed);
@@ -24,10 +26,24 @@ class PseudonymService {
     return '$adj $animal';
   }
 
-  /// Random one for display purposes only
+  /// Random one for display / preview purposes
   static String generateRandom() {
     final adj = AnonUConstants.adjectives[_random.nextInt(AnonUConstants.adjectives.length)];
     final animal = AnonUConstants.animals[_random.nextInt(AnonUConstants.animals.length)];
     return '$adj $animal';
+  }
+
+  /// Deterministic pop accent color based on pseudonym string
+  static Color colorForPseudonym(String pseudonym) {
+    const palette = [
+      AnonUTheme.popYellow,
+      AnonUTheme.popMint,
+      AnonUTheme.popPink,
+      AnonUTheme.popCyan,
+      AnonUTheme.popOrange,
+      AnonUTheme.popPurple,
+    ];
+    final idx = pseudonym.hashCode.abs() % palette.length;
+    return palette[idx];
   }
 }

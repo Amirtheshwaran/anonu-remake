@@ -15,12 +15,12 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  // Set system UI overlay style
+  // Set system UI overlay style for Neo-Brutalist high contrast
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.light,
-    systemNavigationBarColor: AnonUTheme.surface,
-    systemNavigationBarIconBrightness: Brightness.light,
+    statusBarIconBrightness: Brightness.dark,
+    systemNavigationBarColor: AnonUTheme.bgSurface,
+    systemNavigationBarIconBrightness: Brightness.dark,
   ));
 
   await Firebase.initializeApp(
@@ -40,7 +40,7 @@ class AnonUApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'AnonU',
       debugShowCheckedModeBanner: false,
-      theme: AnonUTheme.dark,
+      theme: AnonUTheme.light,
       routerConfig: router,
     );
   }

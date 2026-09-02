@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:anonu/core/theme/app_theme.dart';
 import 'package:anonu/core/constants/constants.dart';
+import 'package:anonu/core/widgets/brutalist_widgets.dart';
 import 'package:anonu/features/feed/presentation/screens/feed_screen.dart';
 import 'package:anonu/shared/models/post_model.dart';
 
@@ -51,20 +52,39 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
     final user = ref.watch(currentUserProvider).value;
 
     return Scaffold(
-      backgroundColor: AnonUTheme.background,
+      backgroundColor: AnonUTheme.bgCream,
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.close_rounded),
-          onPressed: () => context.pop(),
+        backgroundColor: AnonUTheme.bgCream,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: Center(
+            child: GestureDetector(
+              onTap: () => context.pop(),
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AnonUTheme.bgSurface,
+                  borderRadius: BorderRadius.circular(AnonUTheme.radiusSm),
+                  border: Border.all(color: AnonUTheme.black, width: AnonUTheme.borderWidthThin),
+                  boxShadow: const [
+                    BoxShadow(color: AnonUTheme.black, offset: Offset(2, 2), blurRadius: 0),
+                  ],
+                ),
+                child: const Icon(Icons.close_rounded, size: 20, color: AnonUTheme.black),
+              ),
+            ),
+          ),
         ),
-        title: const Text('New Post'),
+        title: const Text('NEW CAMPUS POST'),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: _PostButton(
-              enabled: _canPost && !_loading,
-              loading: _loading,
-              onPost: _submit,
+            padding: const EdgeInsets.only(right: 14),
+            child: BrutalistButton(
+              text: 'PUBLISH →',
+              backgroundColor: _canPost ? AnonUTheme.popYellow : const Color(0xFFE5E2D9),
+              isLoading: _loading,
+              shadowOffset: const Offset(2.5, 2.5),
+              onPressed: _canPost && !_loading ? _submit : null,
             ),
           ),
         ],
@@ -72,104 +92,347 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ── Identity toggle ────────────────────────────────
-            _IdentityToggle(
-              value: _identity,
+            // ── Identity Toggle ──────────────────────────────────────────
+            _IdentitySelector(
+              identity: _identity,
               hasProfile: user?.hasIdentifiedProfile ?? false,
               pseudonym: user?.pseudonym ?? 'Anonymous',
               displayName: user?.displayName,
-              onChanged: (v) => setState(() => _identity = v),
+              onChanged: (val) => setState(() => _identity = val),
             ),
             const SizedBox(height: 16),
 
-            // ── Content input ──────────────────────────────────
-            TextField(
-              controller: _contentController,
-              onChanged: (_) => setState(() {}),
-              maxLines: null,
-              minLines: 5,
-              style: const TextStyle(
-                color: AnonUTheme.textPrimary,
-                fontSize: 16,
-                height: 1.5,
-              ),
-              decoration: const InputDecoration(
-                hintText: "What's on your mind?",
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                filled: false,
+            // ── Main Text Input Box ──────────────────────────────────────
+            BrutalistCard(
+              padding: const EdgeInsets.all(14),
+              backgroundColor: AnonUTheme.bgSurface,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextField(
+                    controller: _contentController,
+                    onChanged: (_) => setState(() {}),
+                    maxLines: null,
+                    minLines: 5,
+                    style: const TextStyle(
+                      color: AnonUTheme.black,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      height: 1.45,
+                    ),
+                    decoration: const InputDecoration(
+                      hintText: "What's happening on campus? Speak freely...",
+                      hintStyle: TextStyle(
+                        color: AnonUTheme.textMuted,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 15,
+                      ),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: _charCount > AnonUConstants.maxPostLength
+                              ? AnonUTheme.downvoteRed
+                              : AnonUTheme.bgCream,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: AnonUTheme.black, width: 1.5),
+                        ),
+                        child: Text(
+                          '$_charCount / ${AnonUConstants.maxPostLength}',
+                          style: TextStyle(
+                            color: _charCount > AnonUConstants.maxPostLength
+                                ? Colors.white
+                                : AnonUTheme.black,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
+            const SizedBox(height: 16),
 
-            // Char counter
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                '${_charCount}/${AnonUConstants.maxPostLength}',
-                style: TextStyle(
-                  color: _charCount > AnonUConstants.maxPostLength
-                      ? AnonUTheme.downvote
-                      : AnonUTheme.textMuted,
-                  fontSize: 12,
+            // ── Multi-Format Bar: Poll, Images, Expiry TTL ───────────────
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _OptionPill(
+                  icon: Icons.poll_rounded,
+                  label: 'POLL',
+                  active: _type == PostType.poll,
+                  activeColor: AnonUTheme.popMint,
+                  onTap: () => setState(() {
+                    _type = _type == PostType.poll ? PostType.text : PostType.poll;
+                  }),
+                ),
+                _OptionPill(
+                  icon: Icons.photo_library_rounded,
+                  label: 'IMAGES (${_images.length}/${AnonUConstants.maxImages})',
+                  active: _type == PostType.image || _images.isNotEmpty,
+                  activeColor: AnonUTheme.popCyan,
+                  onTap: () {
+                    setState(() {
+                      _type = _type == PostType.image ? PostType.text : PostType.image;
+                    });
+                    if (_type == PostType.image && _images.isEmpty) {
+                      _pickImages();
+                    }
+                  },
+                ),
+                _ExpiryPickerPill(
+                  value: _timeLimitHours,
+                  onChanged: (hours) => setState(() => _timeLimitHours = hours),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // ── Poll Configuration Block ─────────────────────────────────
+            if (_type == PostType.poll) ...[
+              BrutalistCard(
+                padding: const EdgeInsets.all(16),
+                backgroundColor: AnonUTheme.bgSurface,
+                child: _PollCreator(
+                  controllers: _pollControllers,
+                  endsAt: _pollEndsAt,
+                  onAddOption: () {
+                    if (_pollControllers.length < AnonUConstants.maxPollOptions) {
+                      setState(() => _pollControllers.add(TextEditingController()));
+                    }
+                  },
+                  onRemoveOption: (i) {
+                    if (_pollControllers.length > 2) {
+                      setState(() => _pollControllers.removeAt(i));
+                    }
+                  },
+                  onEndsAtChanged: (dt) => setState(() => _pollEndsAt = dt),
                 ),
               ),
-            ),
+              const SizedBox(height: 16),
+            ],
 
-            const SizedBox(height: 16),
-
-            // ── Poll builder ───────────────────────────────────
-            if (_type == PostType.poll) ...[
-              _PollBuilder(
-                controllers: _pollControllers,
-                endsAt: _pollEndsAt,
-                onAddOption: () {
-                  if (_pollControllers.length < AnonUConstants.maxPollOptions) {
-                    setState(() => _pollControllers.add(TextEditingController()));
-                  }
-                },
-                onRemoveOption: (i) {
-                  if (_pollControllers.length > 2) {
-                    setState(() => _pollControllers.removeAt(i));
-                  }
-                },
-                onEndsAtChanged: (dt) => setState(() => _pollEndsAt = dt),
+            // ── Image Attachment Panel ───────────────────────────────────
+            if (_type == PostType.image || _images.isNotEmpty) ...[
+              BrutalistCard(
+                padding: const EdgeInsets.all(16),
+                backgroundColor: AnonUTheme.bgSurface,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.photo_library_rounded, size: 18, color: AnonUTheme.black),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'ATTACHED IMAGES',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 12.5,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (_images.length < AnonUConstants.maxImages)
+                          GestureDetector(
+                            onTap: _pickImages,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AnonUTheme.popCyan,
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: AnonUTheme.black, width: 1.5),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.add_a_photo_rounded, size: 14, color: AnonUTheme.black),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'ADD MORE',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 10.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    if (_images.isEmpty)
+                      GestureDetector(
+                        onTap: _pickImages,
+                        child: Container(
+                          height: 90,
+                          decoration: BoxDecoration(
+                            color: AnonUTheme.bgCream,
+                            borderRadius: BorderRadius.circular(AnonUTheme.radiusSm),
+                            border: Border.all(color: AnonUTheme.black, width: 2),
+                          ),
+                          child: const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.cloud_upload_outlined, size: 28, color: AnonUTheme.black),
+                                SizedBox(height: 4),
+                                Text(
+                                  'TAP TO CHOOSE UP TO 4 IMAGES',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 12,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: _images.map((image) {
+                          return Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Container(
+                                width: 90,
+                                height: 90,
+                                decoration: BoxDecoration(
+                                  color: AnonUTheme.bgCream,
+                                  borderRadius: BorderRadius.circular(AnonUTheme.radiusSm),
+                                  border: Border.all(color: AnonUTheme.black, width: 2),
+                                ),
+                                padding: const EdgeInsets.all(4),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.image_rounded, size: 28, color: AnonUTheme.black),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      image.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Positioned(
+                                top: -6,
+                                right: -6,
+                                child: GestureDetector(
+                                  onTap: () => setState(() => _images.remove(image)),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(3),
+                                    decoration: BoxDecoration(
+                                      color: AnonUTheme.downvoteRed,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: AnonUTheme.black, width: 1.5),
+                                    ),
+                                    child: const Icon(Icons.close_rounded, size: 12, color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
             ],
 
-            // ── Tags ───────────────────────────────────────────
-            _TagSelector(
-              selected: _selectedTags,
-              onToggle: (tag) => setState(() {
-                if (_selectedTags.contains(tag)) {
-                  _selectedTags.remove(tag);
-                } else if (_selectedTags.length < AnonUConstants.maxTags) {
-                  _selectedTags.add(tag);
-                }
-              }),
-            ),
-
-            const SizedBox(height: 16),
-
-            // ── Options row ────────────────────────────────────
-            _OptionsRow(
-              type: _type,
-              timeLimitHours: _timeLimitHours,
-              onTypeChange: (t) => setState(() => _type = t),
-              onTimeLimitChange: (h) => setState(() => _timeLimitHours = h),
-            ),
-
-            if (_type == PostType.image) ...[
-              const SizedBox(height: 16),
-              _ImagePickerPanel(
-                images: _images,
-                onAdd: _pickImages,
-                onRemove: (image) => setState(() => _images.remove(image)),
+            // ── Tag Picker ───────────────────────────────────────────────
+            BrutalistCard(
+              padding: const EdgeInsets.all(16),
+              backgroundColor: AnonUTheme.bgSurface,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.tag_rounded, size: 18, color: AnonUTheme.black),
+                      SizedBox(width: 6),
+                      Text(
+                        'CAMPUS TOPICS & TAGS',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 12.5,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: AnonUConstants.suggestedTags.map((t) {
+                      final isSelected = _selectedTags.contains(t);
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            if (isSelected) {
+                              _selectedTags.remove(t);
+                            } else if (_selectedTags.length < AnonUConstants.maxTags) {
+                              _selectedTags.add(t);
+                            }
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: isSelected ? AnonUTheme.popCyan : AnonUTheme.bgCream,
+                            borderRadius: BorderRadius.circular(AnonUTheme.radiusSm),
+                            border: Border.all(color: AnonUTheme.black, width: 1.5),
+                            boxShadow: isSelected
+                                ? const [
+                                    BoxShadow(
+                                      color: AnonUTheme.black,
+                                      offset: Offset(2, 2),
+                                      blurRadius: 0,
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Text(
+                            '#$t',
+                            style: TextStyle(
+                              color: AnonUTheme.black,
+                              fontSize: 12,
+                              fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
               ),
-            ],
+            ),
           ],
         ),
       ),
@@ -183,7 +446,7 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
     try {
       final user = ref.read(currentUserProvider).value;
       final postService = ref.read(postServiceProvider);
-      final imageUrls = _type == PostType.image
+      final imageUrls = _images.isNotEmpty
           ? await _uploadImages()
           : <String>[];
 
@@ -206,7 +469,9 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
       await postService.createPost(
         identity: _identity,
         content: _contentController.text.trim(),
-        type: _type,
+        type: _images.isNotEmpty
+            ? PostType.image
+            : (_type == PostType.poll ? PostType.poll : PostType.text),
         tags: _selectedTags,
         imageUrls: imageUrls,
         poll: poll,
@@ -219,7 +484,13 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
       setState(() => _loading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(
+            backgroundColor: AnonUTheme.downvoteRed,
+            content: Text(
+              'Failed to publish post: $e',
+              style: const TextStyle(fontWeight: FontWeight.w800, color: Colors.white),
+            ),
+          ),
         );
       }
     }
@@ -233,7 +504,10 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
       limit: remaining,
     );
     if (picked.isEmpty) return;
-    setState(() => _images.addAll(picked.take(remaining)));
+    setState(() {
+      _images.addAll(picked.take(remaining));
+      if (_images.isNotEmpty) _type = PostType.image;
+    });
   }
 
   Future<List<String>> _uploadImages() async {
@@ -256,180 +530,56 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
   }
 }
 
-class _ImagePickerPanel extends StatelessWidget {
-  final List<XFile> images;
-  final VoidCallback onAdd;
-  final ValueChanged<XFile> onRemove;
-
-  const _ImagePickerPanel({
-    required this.images,
-    required this.onAdd,
-    required this.onRemove,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Text(
-              'Images',
-              style: TextStyle(
-                color: AnonUTheme.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const Spacer(),
-            TextButton.icon(
-              onPressed: images.length >= AnonUConstants.maxImages ? null : onAdd,
-              icon: const Icon(Icons.add_photo_alternate_outlined, size: 16),
-              label: Text('${images.length}/${AnonUConstants.maxImages}'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        if (images.isEmpty)
-          InkWell(
-            onTap: onAdd,
-            borderRadius: BorderRadius.circular(10),
-            child: Container(
-              height: 84,
-              decoration: BoxDecoration(
-                color: AnonUTheme.surfaceVariant,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AnonUTheme.border),
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.add_photo_alternate_outlined,
-                  color: AnonUTheme.textMuted,
-                ),
-              ),
-            ),
-          )
-        else
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: images.map((image) {
-              return Container(
-                width: 104,
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AnonUTheme.surfaceVariant,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AnonUTheme.border),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.image_outlined,
-                        size: 16, color: AnonUTheme.textMuted),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        image.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AnonUTheme.textSecondary,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => onRemove(image),
-                      child: const Icon(Icons.close_rounded,
-                          size: 15, color: AnonUTheme.textMuted),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
-          ),
-      ],
-    );
-  }
-}
-
-class _PostButton extends StatelessWidget {
-  final bool enabled;
-  final bool loading;
-  final VoidCallback onPost;
-
-  const _PostButton({
-    required this.enabled,
-    required this.loading,
-    required this.onPost,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: enabled ? onPost : null,
-      style: TextButton.styleFrom(
-        foregroundColor: AnonUTheme.maroonLight,
-        disabledForegroundColor: AnonUTheme.textMuted,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-      ),
-      child: loading
-          ? const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: AnonUTheme.maroonLight,
-              ),
-            )
-          : const Text(
-              'Post',
-              style: TextStyle(fontWeight: FontWeight.w700),
-            ),
-    );
-  }
-}
-
-class _IdentityToggle extends StatelessWidget {
-  final PostIdentity value;
+class _IdentitySelector extends StatelessWidget {
+  final PostIdentity identity;
   final bool hasProfile;
   final String pseudonym;
   final String? displayName;
-  final Function(PostIdentity) onChanged;
+  final ValueChanged<PostIdentity> onChanged;
 
-  const _IdentityToggle({
-    required this.value,
+  const _IdentitySelector({
+    required this.identity,
     required this.hasProfile,
     required this.pseudonym,
-    this.displayName,
+    required this.displayName,
     required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: AnonUTheme.surfaceVariant,
-        borderRadius: BorderRadius.circular(12),
+        color: AnonUTheme.bgSurface,
+        borderRadius: BorderRadius.circular(AnonUTheme.radiusSm),
+        border: Border.all(color: AnonUTheme.black, width: AnonUTheme.borderWidthThin),
+        boxShadow: const [
+          BoxShadow(color: AnonUTheme.black, offset: Offset(2.5, 2.5), blurRadius: 0),
+        ],
       ),
+      padding: const EdgeInsets.all(4),
       child: Row(
         children: [
-          _ToggleOption(
-            label: pseudonym,
-            sublabel: 'Anonymous',
-            emoji: '🎭',
-            selected: value == PostIdentity.anonymous,
-            onTap: () => onChanged(PostIdentity.anonymous),
+          Expanded(
+            child: _IdentityCard(
+              title: pseudonym,
+              subtitle: 'ANONYMOUS MASK',
+              emoji: '🎭',
+              isSelected: identity == PostIdentity.anonymous,
+              accentColor: AnonUTheme.popMint,
+              onTap: () => onChanged(PostIdentity.anonymous),
+            ),
           ),
-          _ToggleOption(
-            label: displayName ?? 'Set up profile',
-            sublabel: 'Identified',
-            emoji: '👤',
-            selected: value == PostIdentity.identified,
-            onTap: hasProfile ? () => onChanged(PostIdentity.identified) : null,
-            disabled: !hasProfile,
+          const SizedBox(width: 4),
+          Expanded(
+            child: _IdentityCard(
+              title: displayName ?? 'PROFILE NOT SET',
+              subtitle: 'VERIFIED REAL NAME',
+              emoji: '👤',
+              isSelected: identity == PostIdentity.identified,
+              accentColor: AnonUTheme.popYellow,
+              disabled: !hasProfile,
+              onTap: hasProfile ? () => onChanged(PostIdentity.identified) : null,
+            ),
           ),
         ],
       ),
@@ -437,185 +587,88 @@ class _IdentityToggle extends StatelessWidget {
   }
 }
 
-class _ToggleOption extends StatelessWidget {
-  final String label;
-  final String sublabel;
+class _IdentityCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
   final String emoji;
-  final bool selected;
-  final VoidCallback? onTap;
+  final bool isSelected;
+  final Color accentColor;
   final bool disabled;
+  final VoidCallback? onTap;
 
-  const _ToggleOption({
-    required this.label,
-    required this.sublabel,
+  const _IdentityCard({
+    required this.title,
+    required this.subtitle,
     required this.emoji,
-    required this.selected,
-    this.onTap,
+    required this.isSelected,
+    required this.accentColor,
     this.disabled = false,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: disabled ? null : onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-          decoration: BoxDecoration(
-            color: selected ? AnonUTheme.surface : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Row(
-            children: [
-              Text(emoji, style: const TextStyle(fontSize: 16)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      style: TextStyle(
-                        color: disabled
-                            ? AnonUTheme.textMuted
-                            : AnonUTheme.textPrimary,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+    return GestureDetector(
+      onTap: disabled ? null : onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? accentColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(AnonUTheme.radiusSm - 2),
+          border: isSelected
+              ? Border.all(color: AnonUTheme.black, width: 1.5)
+              : null,
+        ),
+        child: Row(
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 18)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: disabled ? AnonUTheme.textMuted : AnonUTheme.black,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 12.5,
                     ),
-                    Text(
-                      sublabel,
-                      style: const TextStyle(
-                        color: AnonUTheme.textMuted,
-                        fontSize: 10.5,
-                      ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: AnonUTheme.black,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 9.5,
+                      letterSpacing: 0.4,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _TagSelector extends StatelessWidget {
-  final List<String> selected;
-  final Function(String) onToggle;
-
-  const _TagSelector({required this.selected, required this.onToggle});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Tags',
-            style: TextStyle(
-                color: AnonUTheme.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: AnonUConstants.suggestedTags.map((tag) {
-            final isSelected = selected.contains(tag);
-            return GestureDetector(
-              onTap: () => onToggle(tag),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? AnonUTheme.maroon.withOpacity(0.2)
-                      : AnonUTheme.surfaceVariant,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isSelected
-                        ? AnonUTheme.maroon.withOpacity(0.6)
-                        : AnonUTheme.border,
-                    width: 0.5,
-                  ),
-                ),
-                child: Text(
-                  '#$tag',
-                  style: TextStyle(
-                    color: isSelected
-                        ? AnonUTheme.maroonLight
-                        : AnonUTheme.textMuted,
-                    fontSize: 12,
-                    fontWeight:
-                        isSelected ? FontWeight.w600 : FontWeight.normal,
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-}
-
-class _OptionsRow extends StatelessWidget {
-  final PostType type;
-  final int? timeLimitHours;
-  final Function(PostType) onTypeChange;
-  final Function(int?) onTimeLimitChange;
-
-  const _OptionsRow({
-    required this.type,
-    required this.timeLimitHours,
-    required this.onTypeChange,
-    required this.onTimeLimitChange,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        _IconToggle(
-          icon: Icons.bar_chart_rounded,
-          label: 'Poll',
-          active: type == PostType.poll,
-          onTap: () => onTypeChange(
-              type == PostType.poll ? PostType.text : PostType.poll),
-        ),
-        const SizedBox(width: 8),
-        _IconToggle(
-          icon: Icons.image_outlined,
-          label: 'Image',
-          active: type == PostType.image,
-          onTap: () => onTypeChange(
-              type == PostType.image ? PostType.text : PostType.image),
-        ),
-        const SizedBox(width: 8),
-        _TimeLimitPicker(
-          value: timeLimitHours,
-          onChanged: onTimeLimitChange,
-        ),
-      ],
-    );
-  }
-}
-
-class _IconToggle extends StatelessWidget {
+class _OptionPill extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool active;
+  final Color activeColor;
   final VoidCallback onTap;
 
-  const _IconToggle({
+  const _OptionPill({
     required this.icon,
     required this.label,
     required this.active,
+    required this.activeColor,
     required this.onTap,
   });
 
@@ -624,93 +677,28 @@ class _IconToggle extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: const Duration(milliseconds: 120),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: active ? AnonUTheme.maroon.withOpacity(0.15) : AnonUTheme.surfaceVariant,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: active ? AnonUTheme.maroon.withOpacity(0.5) : AnonUTheme.border,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(icon,
-                size: 16,
-                color: active ? AnonUTheme.maroon : AnonUTheme.textMuted),
-            const SizedBox(width: 4),
-            Text(label,
-                style: TextStyle(
-                    color: active ? AnonUTheme.maroon : AnonUTheme.textMuted,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w500)),
+          color: active ? activeColor : AnonUTheme.bgSurface,
+          borderRadius: BorderRadius.circular(AnonUTheme.radiusSm),
+          border: Border.all(color: AnonUTheme.black, width: AnonUTheme.borderWidthThin),
+          boxShadow: const [
+            BoxShadow(color: AnonUTheme.black, offset: Offset(2, 2), blurRadius: 0),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _TimeLimitPicker extends StatelessWidget {
-  final int? value;
-  final Function(int?) onChanged;
-
-  const _TimeLimitPicker({this.value, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => showModalBottomSheet(
-        context: context,
-        backgroundColor: AnonUTheme.surface,
-        builder: (_) => Column(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text('Post expires after...',
-                  style: TextStyle(
-                      color: AnonUTheme.textPrimary,
-                      fontWeight: FontWeight.w600)),
-            ),
-            ListTile(
-              title: const Text('Never', style: TextStyle(color: AnonUTheme.textPrimary)),
-              trailing: value == null ? const Icon(Icons.check, color: AnonUTheme.maroon) : null,
-              onTap: () { onChanged(null); Navigator.pop(context); },
-            ),
-            ...AnonUConstants.timeLimitOptions.map((h) => ListTile(
-              title: Text(h < 24 ? '$h hours' : '${h ~/ 24} day${h > 24 ? 's' : ''}',
-                  style: const TextStyle(color: AnonUTheme.textPrimary)),
-              trailing: value == h ? const Icon(Icons.check, color: AnonUTheme.maroon) : null,
-              onTap: () { onChanged(h); Navigator.pop(context); },
-            )),
-          ],
-        ),
-      ),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: value != null ? AnonUTheme.maroon.withOpacity(0.15) : AnonUTheme.surfaceVariant,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: value != null ? AnonUTheme.maroon.withOpacity(0.5) : AnonUTheme.border,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.timer_outlined,
-                size: 16,
-                color: value != null ? AnonUTheme.maroon : AnonUTheme.textMuted),
-            const SizedBox(width: 4),
+            Icon(icon, size: 16, color: AnonUTheme.black),
+            const SizedBox(width: 6),
             Text(
-              value != null
-                  ? (value! < 24 ? '${value}h' : '${value! ~/ 24}d')
-                  : 'Timer',
-              style: TextStyle(
-                color: value != null ? AnonUTheme.maroon : AnonUTheme.textMuted,
-                fontSize: 12.5,
-                fontWeight: FontWeight.w500,
+              label,
+              style: const TextStyle(
+                color: AnonUTheme.black,
+                fontWeight: FontWeight.w900,
+                fontSize: 12,
+                letterSpacing: 0.3,
               ),
             ),
           ],
@@ -720,14 +708,132 @@ class _TimeLimitPicker extends StatelessWidget {
   }
 }
 
-class _PollBuilder extends StatelessWidget {
+class _ExpiryPickerPill extends StatelessWidget {
+  final int? value;
+  final ValueChanged<int?> onChanged;
+
+  const _ExpiryPickerPill({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final label = value != null ? 'EXPIRES IN ${value}H' : 'EXPIRY: NEVER';
+
+    return GestureDetector(
+      onTap: () => _showExpirySheet(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: value != null ? AnonUTheme.popOrange : AnonUTheme.bgSurface,
+          borderRadius: BorderRadius.circular(AnonUTheme.radiusSm),
+          border: Border.all(color: AnonUTheme.black, width: AnonUTheme.borderWidthThin),
+          boxShadow: const [
+            BoxShadow(color: AnonUTheme.black, offset: Offset(2, 2), blurRadius: 0),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.timer_outlined, size: 16, color: AnonUTheme.black),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AnonUTheme.black,
+                fontWeight: FontWeight.w900,
+                fontSize: 12,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showExpirySheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: AnonUTheme.bgSurface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(AnonUTheme.radiusMd)),
+          border: Border(
+            top: BorderSide(color: AnonUTheme.black, width: 3),
+            left: BorderSide(color: AnonUTheme.black, width: 3),
+            right: BorderSide(color: AnonUTheme.black, width: 3),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'SET POST EXPIRATION TTL',
+              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Expired posts will self-destruct and disappear from the campus feed.',
+              style: TextStyle(color: AnonUTheme.textSecondary, fontSize: 12.5, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 16),
+            _expiryTile(context, null, 'NEVER (PERMANENT POST)'),
+            ...AnonUConstants.timeLimitOptions.map(
+              (h) => _expiryTile(context, h, '$h HOUR${h == 1 ? "" : "S"} (${h < 24 ? "$h hours" : "${h ~/ 24} day"})'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _expiryTile(BuildContext context, int? hours, String label) {
+    final isSelected = value == hours;
+    return GestureDetector(
+      onTap: () {
+        onChanged(hours);
+        Navigator.pop(context);
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? AnonUTheme.popYellow : AnonUTheme.bgCream,
+          borderRadius: BorderRadius.circular(AnonUTheme.radiusSm),
+          border: Border.all(color: AnonUTheme.black, width: 1.5),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              isSelected ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
+              size: 18,
+              color: AnonUTheme.black,
+            ),
+            const SizedBox(width: 10),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PollCreator extends StatelessWidget {
   final List<TextEditingController> controllers;
   final DateTime endsAt;
   final VoidCallback onAddOption;
-  final Function(int) onRemoveOption;
-  final Function(DateTime) onEndsAtChanged;
+  final ValueChanged<int> onRemoveOption;
+  final ValueChanged<DateTime> onEndsAtChanged;
 
-  const _PollBuilder({
+  const _PollCreator({
     required this.controllers,
     required this.endsAt,
     required this.onAddOption,
@@ -738,44 +844,98 @@ class _PollBuilder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text('Poll Options',
-            style: TextStyle(
-                color: AnonUTheme.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        ...List.generate(controllers.length, (i) => Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: controllers[i],
-                  style: const TextStyle(color: AnonUTheme.textPrimary, fontSize: 14),
-                  decoration: InputDecoration(
-                    hintText: 'Option ${i + 1}',
-                    isDense: true,
+        const Row(
+          children: [
+            Icon(Icons.bar_chart_rounded, size: 18, color: AnonUTheme.black),
+            SizedBox(width: 6),
+            Text(
+              'POLL OPTIONS (2-4)',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 12.5,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ...List.generate(controllers.length, (i) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                Container(
+                  width: 28,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: AnonUTheme.black,
+                    borderRadius: const BorderRadius.horizontal(left: Radius.circular(AnonUTheme.radiusSm)),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    String.fromCharCode(65 + i),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
-              ),
-              if (controllers.length > 2)
-                IconButton(
-                  icon: const Icon(Icons.remove_circle_outline,
-                      color: AnonUTheme.downvote, size: 20),
-                  onPressed: () => onRemoveOption(i),
+                Expanded(
+                  child: Container(
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: AnonUTheme.bgCream,
+                      borderRadius: const BorderRadius.horizontal(right: Radius.circular(AnonUTheme.radiusSm)),
+                      border: Border.all(color: AnonUTheme.black, width: 2),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    alignment: Alignment.center,
+                    child: TextField(
+                      controller: controllers[i],
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+                      decoration: InputDecoration(
+                        hintText: 'Option ${i + 1}',
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ),
                 ),
-            ],
+                if (controllers.length > 2) ...[
+                  const SizedBox(width: 6),
+                  GestureDetector(
+                    onTap: () => onRemoveOption(i),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AnonUTheme.downvoteRed,
+                        borderRadius: BorderRadius.circular(AnonUTheme.radiusSm),
+                        border: Border.all(color: AnonUTheme.black, width: 1.5),
+                      ),
+                      child: const Icon(Icons.close_rounded, size: 16, color: Colors.white),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        }),
+        if (controllers.length < AnonUConstants.maxPollOptions) ...[
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: BrutalistButton(
+              text: '+ ADD OPTION',
+              backgroundColor: AnonUTheme.popMint,
+              shadowOffset: const Offset(2, 2),
+              onPressed: onAddOption,
+            ),
           ),
-        )),
-        if (controllers.length < AnonUConstants.maxPollOptions)
-          TextButton.icon(
-            onPressed: onAddOption,
-            icon: const Icon(Icons.add, size: 16),
-            label: const Text('Add option'),
-            style: TextButton.styleFrom(foregroundColor: AnonUTheme.maroon),
-          ),
+        ],
       ],
     );
   }

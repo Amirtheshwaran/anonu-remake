@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:anonu/core/theme/app_theme.dart';
+import 'package:anonu/core/widgets/brutalist_widgets.dart';
 import 'package:anonu/features/feed/presentation/screens/feed_screen.dart';
 import 'package:anonu/shared/models/post_model.dart';
 import 'package:anonu/shared/models/user_model.dart';
+import 'package:anonu/shared/services/pseudonym_service.dart';
 import 'package:anonu/shared/widgets/post_card.dart';
 
-// ── Profile Screen ──────────────────────────────────────────────────────────
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
@@ -17,8 +18,10 @@ class ProfileScreen extends ConsumerWidget {
     final user = ref.watch(currentUserProvider).value;
     if (user == null) {
       return const Scaffold(
-        backgroundColor: AnonUTheme.background,
-        body: Center(child: CircularProgressIndicator(color: AnonUTheme.maroon)),
+        backgroundColor: AnonUTheme.bgCream,
+        body: Center(
+          child: CircularProgressIndicator(strokeWidth: 3, color: AnonUTheme.black),
+        ),
       );
     }
 
@@ -28,59 +31,226 @@ class ProfileScreen extends ConsumerWidget {
     );
 
     return Scaffold(
-      backgroundColor: AnonUTheme.background,
+      backgroundColor: AnonUTheme.bgCream,
       appBar: AppBar(
-        title: const Text('Profile'),
+        backgroundColor: AnonUTheme.bgCream,
+        title: const Text('CAMPUS IDENTITY'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_rounded, color: AnonUTheme.textSecondary),
-            onPressed: () async {
-              await ref.read(authServiceProvider).signOut();
-              if (context.mounted) context.go('/auth');
-            },
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: BrutalistButton(
+              text: 'LOG OUT',
+              backgroundColor: AnonUTheme.downvoteRed,
+              textColor: Colors.white,
+              shadowOffset: const Offset(2, 2),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              onPressed: () async {
+                await ref.read(authServiceProvider).signOut();
+                if (context.mounted) context.go('/auth');
+              },
+            ),
           ),
         ],
       ),
       body: CustomScrollView(
         slivers: [
-          SliverToBoxAdapter(child: _ProfileHeader(user: user)),
-          SliverToBoxAdapter(child: _StatsRow(user: user)),
-          SliverToBoxAdapter(child: _ProfileActions(user: user)),
-          if (user.isModerator) const SliverToBoxAdapter(child: _ModeratorPanel()),
-          const SliverToBoxAdapter(
+          SliverToBoxAdapter(child: _BrutalistProfileHeader(user: user)),
+          SliverToBoxAdapter(child: _BrutalistStatsRow(user: user)),
+          SliverToBoxAdapter(child: _BrutalistProfileActions(user: user)),
+          if (user.isModerator) SliverToBoxAdapter(child: _BrutalistModeratorPanel(user: user)),
+          SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(16, 20, 16, 8),
-              child: Text(
-                'Your Posts',
-                style: TextStyle(
-                    color: AnonUTheme.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5),
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AnonUTheme.popYellow,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: AnonUTheme.black, width: 1.5),
+                    ),
+                    child: const Text(
+                      'ARCHIVE',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 10.5,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'YOUR PUBLICATIONS',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 12.5,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
           postsStream.when(
-            data: (posts) => SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (_, i) => PostCard(
-                  post: posts[i],
-                  onTap: () => context.push('/post/${posts[i].id}'),
-                  onUpvote: () => ref.read(postServiceProvider).vote(posts[i], true),
-                  onDownvote: () => ref.read(postServiceProvider).vote(posts[i], false),
-                  onComment: () => context.push('/post/${posts[i].id}'),
-                  onRepost: () => ref
-                      .read(postServiceProvider)
-                      .repost(posts[i], user),
-                  onReport: () => ref
-                      .read(postServiceProvider)
-                      .reportPost(posts[i].id, 'Profile report'),
+            data: (posts) {
+              if (posts.isEmpty) {
+                return SliverToBoxAdapter(
+                  child: Center(
+                    child: BrutalistCard(
+                      margin: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.all(20),
+                      backgroundColor: AnonUTheme.bgSurface,
+                      child: const Column(
+                        children: [
+                          Icon(Icons.history_edu_rounded, size: 32, color: AnonUTheme.black),
+                          SizedBox(height: 6),
+                          Text(
+                            'NO POSTS PUBLISHED YET',
+                            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Your anonymous and identified campus posts will be indexed here.',
+                            style: TextStyle(color: AnonUTheme.textSecondary, fontSize: 11.5),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              return SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (_, i) => PostCard(
+                    post: posts[i],
+                    onTap: () => context.push('/post/${posts[i].id}'),
+                    onUpvote: () => ref.read(postServiceProvider).vote(posts[i], true),
+                    onDownvote: () => ref.read(postServiceProvider).vote(posts[i], false),
+                    onComment: () => context.push('/post/${posts[i].id}'),
+                    onRepost: () => ref.read(postServiceProvider).repost(posts[i], user),
+                    onReport: () => ref.read(postServiceProvider).reportPost(posts[i].id, 'Profile report'),
+                  ),
+                  childCount: posts.length,
                 ),
-                childCount: posts.length,
-              ),
+              );
+            },
+            loading: () => const SliverToBoxAdapter(
+              child: Center(child: CircularProgressIndicator(color: AnonUTheme.black)),
             ),
-            loading: () => const SliverToBoxAdapter(child: SizedBox.shrink()),
             error: (_, __) => const SliverToBoxAdapter(child: SizedBox.shrink()),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 40)),
+        ],
+      ),
+    );
+  }
+}
+
+class _BrutalistProfileHeader extends StatelessWidget {
+  final UserModel user;
+  const _BrutalistProfileHeader({required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    final avatarColor = PseudonymService.colorForPseudonym(user.pseudonym);
+
+    return BrutalistCard(
+      margin: const EdgeInsets.fromLTRB(14, 10, 14, 8),
+      padding: const EdgeInsets.all(16),
+      backgroundColor: AnonUTheme.bgSurface,
+      child: Row(
+        children: [
+          // Avatar
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: avatarColor,
+              borderRadius: BorderRadius.circular(AnonUTheme.radiusSm),
+              border: Border.all(color: AnonUTheme.black, width: 2.5),
+              boxShadow: const [
+                BoxShadow(color: AnonUTheme.black, offset: Offset(2.5, 2.5), blurRadius: 0),
+              ],
+            ),
+            child: user.hasIdentifiedProfile && user.avatarUrl != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(AnonUTheme.radiusSm - 2),
+                    child: CachedNetworkImage(imageUrl: user.avatarUrl!, fit: BoxFit.cover),
+                  )
+                : Center(
+                    child: Text(
+                      user.pseudonym.split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join().toUpperCase(),
+                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 22),
+                    ),
+                  ),
+          ),
+          const SizedBox(width: 16),
+          // Details
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        user.pseudonym,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.5,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const BrutalistBadge(
+                      label: 'PERM MASK',
+                      backgroundColor: AnonUTheme.popMint,
+                      fontSize: 9,
+                      borderWidth: 1.5,
+                      hasShadow: false,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                if (user.hasIdentifiedProfile)
+                  Text(
+                    'Real Name: ${user.displayName}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: AnonUTheme.textSecondary,
+                    ),
+                  )
+                else
+                  const Text(
+                    'Real Name: Not configured yet',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                      color: AnonUTheme.textMuted,
+                    ),
+                  ),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AnonUTheme.bgCream,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: AnonUTheme.black, width: 1),
+                  ),
+                  child: Text(
+                    user.email.isNotEmpty ? user.email : 'GUEST ANONYMOUS SESSION',
+                    style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -88,19 +258,104 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
-class _ProfileActions extends ConsumerWidget {
+class _BrutalistStatsRow extends StatelessWidget {
   final UserModel user;
-  const _ProfileActions({required this.user});
+  const _BrutalistStatsRow({required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: _StatCard(
+              value: '${user.postCount}',
+              label: 'PUBLICATIONS',
+              accentColor: AnonUTheme.popYellow,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _StatCard(
+              value: '${user.upvotesReceived}',
+              label: 'UPVOTES',
+              accentColor: AnonUTheme.popMint,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _StatCard(
+              value: '${user.longestStreak}🔥',
+              label: 'BEST STREAK',
+              accentColor: AnonUTheme.popOrange,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final String value;
+  final String label;
+  final Color accentColor;
+
+  const _StatCard({
+    required this.value,
+    required this.label,
+    required this.accentColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return BrutalistCard(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      backgroundColor: AnonUTheme.bgSurface,
+      borderWidth: AnonUTheme.borderWidthThin,
+      shadowOffset: const Offset(2, 2),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              color: AnonUTheme.black,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w800,
+              color: AnonUTheme.textSecondary,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BrutalistProfileActions extends ConsumerWidget {
+  final UserModel user;
+  const _BrutalistProfileActions({required this.user});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
-      color: AnonUTheme.surface,
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: OutlinedButton.icon(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
+      child: BrutalistButton(
+        text: 'EDIT IDENTIFIED PROFILE',
+        icon: const Icon(Icons.badge_outlined, size: 18, color: AnonUTheme.black),
+        backgroundColor: AnonUTheme.popCyan,
+        isFullWidth: true,
+        shadowOffset: const Offset(2.5, 2.5),
         onPressed: () => _showEditProfile(context, ref),
-        icon: const Icon(Icons.edit_outlined, size: 16),
-        label: const Text('Edit identified profile'),
       ),
     );
   }
@@ -108,114 +363,179 @@ class _ProfileActions extends ConsumerWidget {
   Future<void> _showEditProfile(BuildContext context, WidgetRef ref) async {
     final nameController = TextEditingController(text: user.displayName ?? '');
     final avatarController = TextEditingController(text: user.avatarUrl ?? '');
+
     final saved = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AnonUTheme.surface,
-        title: const Text('Identified profile',
-            style: TextStyle(color: AnonUTheme.textPrimary)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              style: const TextStyle(color: AnonUTheme.textPrimary),
-              decoration: const InputDecoration(hintText: 'Display name'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: avatarController,
-              style: const TextStyle(color: AnonUTheme.textPrimary),
-              decoration: const InputDecoration(hintText: 'Avatar URL'),
-            ),
-          ],
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: BrutalistCard(
+          padding: const EdgeInsets.all(20),
+          backgroundColor: AnonUTheme.bgSurface,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.badge_rounded, size: 22, color: AnonUTheme.black),
+                  SizedBox(width: 8),
+                  Text(
+                    'IDENTIFIED PROFILE',
+                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Configure your real name and avatar for identified campus posts.',
+                style: TextStyle(color: AnonUTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 16),
+              const Text('DISPLAY NAME', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11)),
+              const SizedBox(height: 4),
+              BrutalistTextField(controller: nameController, hintText: 'e.g. Alex Johnson'),
+              const SizedBox(height: 12),
+              const Text('AVATAR IMAGE URL', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11)),
+              const SizedBox(height: 4),
+              BrutalistTextField(controller: avatarController, hintText: 'https://example.com/avatar.jpg'),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  BrutalistButton(
+                    text: 'CANCEL',
+                    backgroundColor: const Color(0xFFE5E2D9),
+                    shadowOffset: const Offset(2, 2),
+                    onPressed: () => Navigator.pop(context, false),
+                  ),
+                  const SizedBox(width: 10),
+                  BrutalistButton(
+                    text: 'SAVE CHANGES',
+                    backgroundColor: AnonUTheme.popYellow,
+                    shadowOffset: const Offset(2, 2),
+                    onPressed: () => Navigator.pop(context, true),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Save'),
-          ),
-        ],
       ),
     );
+
     if (saved == true) {
       await ref.read(authServiceProvider).updateProfile(
-            displayName: nameController.text.trim().isEmpty
-                ? null
-                : nameController.text.trim(),
-            avatarUrl: avatarController.text.trim().isEmpty
-                ? null
-                : avatarController.text.trim(),
+            displayName: nameController.text.trim().isEmpty ? null : nameController.text.trim(),
+            avatarUrl: avatarController.text.trim().isEmpty ? null : avatarController.text.trim(),
           );
       ref.invalidate(currentUserProvider);
     }
   }
 }
 
-class _ModeratorPanel extends ConsumerWidget {
-  const _ModeratorPanel();
+class _BrutalistModeratorPanel extends ConsumerWidget {
+  final UserModel user;
+  const _BrutalistModeratorPanel({required this.user});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final reports = ref.watch(
       StreamProvider((ref) => ref.read(postServiceProvider).reportsStream()),
     );
-    return Container(
-      margin: const EdgeInsets.only(top: 1),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      color: AnonUTheme.surface,
+
+    return BrutalistCard(
+      margin: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+      padding: const EdgeInsets.all(16),
+      backgroundColor: const Color(0xFFFFF7EA),
+      borderWidth: AnonUTheme.borderWidth,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Moderator Queue',
-            style: TextStyle(
-              color: AnonUTheme.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.4,
-            ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: AnonUTheme.downvoteRed,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: AnonUTheme.black, width: 1.5),
+                ),
+                child: const Icon(Icons.shield_rounded, size: 16, color: Colors.white),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'CAMPUS MODERATOR QUEUE',
+                style: TextStyle(
+                  color: AnonUTheme.black,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           reports.when(
             loading: () => const LinearProgressIndicator(),
-            error: (e, _) => Text('$e',
-                style: const TextStyle(color: AnonUTheme.downvote)),
+            error: (e, _) => Text('$e', style: const TextStyle(color: AnonUTheme.downvoteRed)),
             data: (items) {
               if (items.isEmpty) {
-                return const Text('No open reports',
-                    style: TextStyle(color: AnonUTheme.textMuted));
+                return Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AnonUTheme.bgCream,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: AnonUTheme.black, width: 1),
+                  ),
+                  child: const Text(
+                    'No open incident reports. Campus is clean.',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                  ),
+                );
               }
               return Column(
                 children: items.take(5).map((report) {
                   final postId = report['postId'] as String?;
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      report['reason']?.toString() ?? 'Report',
-                      style: const TextStyle(color: AnonUTheme.textPrimary),
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AnonUTheme.bgSurface,
+                      borderRadius: BorderRadius.circular(AnonUTheme.radiusSm),
+                      border: Border.all(color: AnonUTheme.black, width: 1.5),
                     ),
-                    subtitle: Text(
-                      postId ?? '',
-                      style: const TextStyle(color: AnonUTheme.textMuted),
-                    ),
-                    trailing: Wrap(
-                      spacing: 6,
+                    child: Row(
                       children: [
-                        IconButton(
-                          tooltip: 'Resolve',
-                          icon: const Icon(Icons.check_rounded),
-                          onPressed: () => ref
-                              .read(postServiceProvider)
-                              .resolveReport(report['id'] as String),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Reason: ${report["reason"]}',
+                                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+                              ),
+                              Text(
+                                'Post ID: $postId',
+                                style: const TextStyle(color: AnonUTheme.textMuted, fontSize: 11),
+                              ),
+                            ],
+                          ),
                         ),
-                        IconButton(
-                          tooltip: 'Hide post',
-                          icon: const Icon(Icons.visibility_off_outlined),
+                        // Action buttons
+                        BrutalistButton(
+                          text: 'DISMISS',
+                          backgroundColor: AnonUTheme.bgCream,
+                          shadowOffset: const Offset(1.5, 1.5),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          onPressed: () => ref.read(postServiceProvider).resolveReport(report['id'] as String),
+                        ),
+                        const SizedBox(width: 6),
+                        BrutalistButton(
+                          text: 'HIDE POST',
+                          backgroundColor: AnonUTheme.downvoteRed,
+                          textColor: Colors.white,
+                          shadowOffset: const Offset(1.5, 1.5),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           onPressed: () => ref.read(postServiceProvider).resolveReport(
                                 report['id'] as String,
                                 postId: postId,
@@ -232,265 +552,5 @@ class _ModeratorPanel extends ConsumerWidget {
         ],
       ),
     );
-  }
-}
-
-class _ProfileHeader extends StatelessWidget {
-  final UserModel user;
-  const _ProfileHeader({required this.user});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
-      color: AnonUTheme.surface,
-      child: Column(
-        children: [
-          CircleAvatar(
-            radius: 36,
-            backgroundColor: AnonUTheme.maroon.withOpacity(0.2),
-            child: Text(
-              user.pseudonym[0],
-              style: const TextStyle(
-                  color: AnonUTheme.maroon,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            user.pseudonym,
-            style: const TextStyle(
-              color: AnonUTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          if (user.displayName != null) ...[
-            const SizedBox(height: 2),
-            Text(
-              user.displayName!,
-              style: const TextStyle(
-                  color: AnonUTheme.textSecondary, fontSize: 13.5),
-            ),
-          ],
-          const SizedBox(height: 4),
-          Text(
-            user.email,
-            style: const TextStyle(color: AnonUTheme.textMuted, fontSize: 12),
-          ),
-          if (user.currentStreak > 0) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-              decoration: BoxDecoration(
-                color: AnonUTheme.maroon.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                '🔥 ${user.currentStreak}-day check-in streak',
-                style: const TextStyle(
-                    color: AnonUTheme.maroon,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _StatsRow extends StatelessWidget {
-  final UserModel user;
-  const _StatsRow({required this.user});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(top: 1),
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      color: AnonUTheme.surface,
-      child: Row(
-        children: [
-          _Stat(value: user.postCount.toString(), label: 'Posts'),
-          _Stat(value: user.upvotesReceived.toString(), label: 'Upvotes'),
-          _Stat(
-              value: user.longestStreak.toString(), label: 'Best streak 🔥'),
-        ],
-      ),
-    );
-  }
-}
-
-class _Stat extends StatelessWidget {
-  final String value;
-  final String label;
-  const _Stat({required this.value, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(value,
-              style: const TextStyle(
-                  color: AnonUTheme.textPrimary,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700)),
-          const SizedBox(height: 2),
-          Text(label,
-              style: const TextStyle(
-                  color: AnonUTheme.textMuted, fontSize: 11.5)),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Notifications Screen ──────────────────────────────────────────────────
-class NotificationsScreen extends ConsumerWidget {
-  const NotificationsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final uid = ref.read(authServiceProvider).currentUser?.uid;
-
-    final notifStream = ref.watch(
-      StreamProvider<List<NotificationModel>>((ref) {
-        if (uid == null) return Stream.value([]);
-        return FirebaseFirestore.instance
-            .collection('notifications')
-            .where('recipientUid', isEqualTo: uid)
-            .orderBy('createdAt', descending: true)
-            .limit(50)
-            .snapshots()
-            .map((s) => s.docs
-                .map((d) => NotificationModel.fromFirestore(d))
-                .toList());
-      }),
-    );
-
-    return Scaffold(
-      backgroundColor: AnonUTheme.background,
-      appBar: AppBar(title: const Text('Notifications')),
-      body: notifStream.when(
-        data: (notifs) {
-          if (notifs.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text('🔔', style: TextStyle(fontSize: 40)),
-                  SizedBox(height: 12),
-                  Text('No notifications yet',
-                      style: TextStyle(color: AnonUTheme.textMuted)),
-                ],
-              ),
-            );
-          }
-          return ListView.builder(
-            itemCount: notifs.length,
-            itemBuilder: (_, i) => _NotifTile(
-              notif: notifs[i],
-              onTap: () {
-                if (notifs[i].postId != null) {
-                  context.push('/post/${notifs[i].postId}');
-                }
-                // Mark as read
-                FirebaseFirestore.instance
-                    .collection('notifications')
-                    .doc(notifs[i].id)
-                    .update({'isRead': true});
-              },
-            ),
-          );
-        },
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AnonUTheme.maroon),
-        ),
-        error: (_, __) => const Center(
-          child: Text('Error loading notifications',
-              style: TextStyle(color: AnonUTheme.textMuted)),
-        ),
-      ),
-    );
-  }
-}
-
-class _NotifTile extends StatelessWidget {
-  final NotificationModel notif;
-  final VoidCallback onTap;
-
-  const _NotifTile({required this.notif, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-        decoration: BoxDecoration(
-          color: notif.isRead ? AnonUTheme.background : AnonUTheme.surface,
-          border: const Border(
-              bottom: BorderSide(color: AnonUTheme.border, width: 0.5)),
-        ),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: AnonUTheme.surfaceVariant,
-              child: Text(_notifIcon, style: const TextStyle(fontSize: 14)),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    notif.message,
-                    style: TextStyle(
-                      color: AnonUTheme.textPrimary,
-                      fontSize: 13.5,
-                      fontWeight: notif.isRead ? FontWeight.normal : FontWeight.w600,
-                    ),
-                  ),
-                  if (notif.postPreview != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      notif.postPreview!,
-                      style: const TextStyle(
-                          color: AnonUTheme.textMuted, fontSize: 12),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            if (!notif.isRead)
-              Container(
-                width: 7,
-                height: 7,
-                decoration: const BoxDecoration(
-                  color: AnonUTheme.maroon,
-                  shape: BoxShape.circle,
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String get _notifIcon {
-    switch (notif.type) {
-      case NotificationType.upvote: return '⬆️';
-      case NotificationType.comment: return '💬';
-      case NotificationType.reply: return '↩️';
-      case NotificationType.repost: return '🔁';
-      case NotificationType.mention: return '@';
-    }
   }
 }

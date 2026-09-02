@@ -14,57 +14,82 @@ class MoodBar extends ConsumerWidget {
     final currentUser = ref.watch(currentUserProvider).value;
 
     return Container(
-      height: 52,
-      color: AnonUTheme.surface,
+      height: 56,
+      margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      decoration: BoxDecoration(
+        color: AnonUTheme.bgSurface,
+        borderRadius: BorderRadius.circular(AnonUTheme.radiusSm),
+        border: Border.all(color: AnonUTheme.black, width: AnonUTheme.borderWidthThin),
+        boxShadow: const [
+          BoxShadow(
+            color: AnonUTheme.black,
+            offset: Offset(2.5, 2.5),
+            blurRadius: 0,
+          ),
+        ],
+      ),
       child: Row(
         children: [
-          // Campus mood board display
+          // ── Campus Live Mood Ticker ──────────────────────────────
           Expanded(
             child: moodBoard.when(
               data: (counts) => _MoodBoardDisplay(counts: counts),
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  'LOADING CAMPUS VIBES...',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11),
+                ),
+              ),
+              error: (_, __) => const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12),
+                child: Text('MOOD BOARD OFFLINE', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11)),
+              ),
             ),
           ),
-          // Check-in button
+
+          // ── Divider ──────────────────────────────────────────────
+          Container(width: AnonUTheme.borderWidthThin, height: 56, color: AnonUTheme.black),
+
+          // ── Check-in Button with Streak Pill ─────────────────────
           GestureDetector(
             onTap: () => _showMoodCheckIn(context, ref, currentUser),
             child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AnonUTheme.maroon.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                    color: AnonUTheme.maroon.withOpacity(0.4), width: 0.5),
-              ),
+              color: AnonUTheme.popYellow,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              alignment: Alignment.center,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     currentUser?.lastMood ?? '😐',
-                    style: const TextStyle(fontSize: 14),
+                    style: const TextStyle(fontSize: 16),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 6),
                   const Text(
-                    'Check in',
+                    'CHECK IN',
                     style: TextStyle(
-                      color: AnonUTheme.maroon,
+                      color: AnonUTheme.black,
                       fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5,
                     ),
                   ),
                   if ((currentUser?.currentStreak ?? 0) > 0) ...[
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: AnonUTheme.maroon,
-                        borderRadius: BorderRadius.circular(10),
+                        color: AnonUTheme.black,
+                        borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         '${currentUser!.currentStreak}🔥',
-                        style: const TextStyle(fontSize: 9, color: Colors.white),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                          color: AnonUTheme.popYellow,
+                        ),
                       ),
                     ),
                   ],
@@ -72,28 +97,35 @@ class MoodBar extends ConsumerWidget {
               ),
             ),
           ),
-          const Divider(height: 1),
         ],
       ),
     );
   }
 
-  void _showMoodCheckIn(
-      BuildContext context, WidgetRef ref, UserModel? user) {
+  void _showMoodCheckIn(BuildContext context, WidgetRef ref, UserModel? user) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AnonUTheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (_) => _MoodCheckInSheet(
         onSelect: (mood) async {
           final uid = ref.read(authServiceProvider).currentUser?.uid;
           if (uid != null) {
             await ref.read(authServiceProvider).checkInMood(uid, mood);
             ref.invalidate(currentUserProvider);
+            ref.invalidate(_moodBoardProvider);
           }
-          if (context.mounted) Navigator.pop(context);
+          if (context.mounted) {
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                backgroundColor: AnonUTheme.popMint,
+                content: Text(
+                  'Campus mood updated with $mood! Streak safe.',
+                  style: const TextStyle(color: AnonUTheme.black, fontWeight: FontWeight.w800),
+                ),
+              ),
+            );
+          }
         },
       ),
     );
@@ -108,35 +140,56 @@ class _MoodBoardDisplay extends StatelessWidget {
   Widget build(BuildContext context) {
     if (counts.isEmpty) {
       return const Padding(
-        padding: EdgeInsets.only(left: 16),
-        child: Text(
-          'Campus mood — check in!',
-          style: TextStyle(color: AnonUTheme.textMuted, fontSize: 12),
+        padding: EdgeInsets.only(left: 12),
+        child: Row(
+          children: [
+            Text('⚡', style: TextStyle(fontSize: 14)),
+            SizedBox(width: 6),
+            Text(
+              'CAMPUS MOOD BOARD: CHECK IN!',
+              style: TextStyle(
+                color: AnonUTheme.black,
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ],
         ),
       );
     }
 
-    // Sort by count
-    final sorted = counts.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
+    final sorted = counts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
 
     return ListView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       children: sorted.take(6).map((entry) {
-        final mood = AnonUConstants.moods
-            .firstWhere((m) => m['label'] == entry.key,
-                orElse: () => {'emoji': '😐', 'label': entry.key});
-        return Padding(
-          padding: const EdgeInsets.only(right: 8),
+        final mood = AnonUConstants.moods.firstWhere(
+          (m) => m['label'] == entry.key,
+          orElse: () => {'emoji': '😐', 'label': entry.key},
+        );
+
+        return Container(
+          margin: const EdgeInsets.only(right: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: AnonUTheme.bgCream,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: AnonUTheme.black, width: 1.5),
+          ),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(mood['emoji']!, style: const TextStyle(fontSize: 15)),
-              const SizedBox(width: 3),
+              const SizedBox(width: 4),
               Text(
                 '${entry.value}',
                 style: const TextStyle(
-                    color: AnonUTheme.textMuted, fontSize: 11.5),
+                  color: AnonUTheme.black,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ],
           ),
@@ -152,53 +205,86 @@ class _MoodCheckInSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 36),
+      decoration: const BoxDecoration(
+        color: AnonUTheme.bgSurface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AnonUTheme.radiusMd)),
+        border: Border(
+          top: BorderSide(color: AnonUTheme.black, width: 3),
+          left: BorderSide(color: AnonUTheme.black, width: 3),
+          right: BorderSide(color: AnonUTheme.black, width: 3),
+        ),
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'How are you feeling?',
-            style: TextStyle(
-              color: AnonUTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AnonUTheme.popYellow,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: AnonUTheme.black, width: 2),
+                ),
+                child: const Text('🔥', style: TextStyle(fontSize: 18)),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'HOW ARE YOU FEELING TODAY?',
+                      style: TextStyle(
+                        color: AnonUTheme.black,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    Text(
+                      '100% Anonymous. Only your emoji joins the campus pulse.',
+                      style: TextStyle(color: AnonUTheme.textSecondary, fontSize: 11, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 6),
-          const Text(
-            'Anonymous — only your emoji joins the campus mood.',
-            style: TextStyle(color: AnonUTheme.textMuted, fontSize: 12.5),
-          ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
           GridView.count(
             shrinkWrap: true,
             crossAxisCount: 3,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 1.8,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 1.6,
             children: AnonUConstants.moods.map((mood) {
               return GestureDetector(
                 onTap: () => onSelect(mood['label']!),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: AnonUTheme.surfaceVariant,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AnonUTheme.border),
+                    color: AnonUTheme.bgCream,
+                    borderRadius: BorderRadius.circular(AnonUTheme.radiusSm),
+                    border: Border.all(color: AnonUTheme.black, width: 2),
+                    boxShadow: const [
+                      BoxShadow(color: AnonUTheme.black, offset: Offset(2, 2), blurRadius: 0),
+                    ],
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(mood['emoji']!,
-                          style: const TextStyle(fontSize: 22)),
+                      Text(mood['emoji']!, style: const TextStyle(fontSize: 22)),
                       const SizedBox(height: 2),
                       Text(
-                        mood['label']!,
+                        mood['label']!.toUpperCase(),
                         style: const TextStyle(
-                          color: AnonUTheme.textSecondary,
+                          color: AnonUTheme.black,
                           fontSize: 11,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.4,
                         ),
                       ),
                     ],
