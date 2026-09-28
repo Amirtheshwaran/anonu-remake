@@ -74,6 +74,21 @@ CLIENT                          CLOUD FUNCTIONS (2nd Gen)              FIRESTORE
    - All write operations (`createPost`, `createComment`, `vote`, `report`) require an authenticated Firebase token with `email_verified == true`.
    - 3-Screen Onboarding walks new students through thread-based anonymity, expiring posts, and requires explicit agreement to Campus Community Rules (stamped with a timestamp on the user's private record).
 
+9. **Zero-Knowledge User Blocking**:
+   App Store and Google Play require user blocking for user-generated content applications. In an anonymous system, revealing an author's identity or linking their posts across feeds would destroy privacy. AnonU implements server-side author resolution: calling `blockAuthor({ postId })` maps the author's internal UID to their authored publications and writes them to the blocker's private subcollection (`/users/{uid}/blockedPosts`). The blocker never learns the author's identity, the author is not notified, and all publications/replies by that author are instantly filtered from feeds and threads.
+
+10. **Automated PII, Crisis, and Toxicity Content Screening**:
+   Every post and reply passes through server-side automated screening in Cloud Functions before committing to Firestore:
+   - **PII / Anti-Doxxing Regex**: Identifies student ID numbers (`800xxxxxx`), university/personal emails, phone numbers, and physical dorm addresses, auto-hiding high-risk doxxing posts.
+   - **Crisis Support (988 Lifeline)**: Flags self-harm signals and returns immediate supportive resources (988 Suicide & Crisis Lifeline) without penalizing students.
+   - **Toxicity & Threats**: Classifies hate speech, harassment, threats, and spam, auto-hiding dangerous posts and routing them to the moderator queue.
+
+11. **Moderator Console, Progressive Strike Escalation & Appeals**:
+   Verified moderators (`request.auth.token.isModerator == true`) access an in-app and web console (`app/admin.tsx`) with severity-sorted queues (`crisis`, `high`, `medium`, `low`), full thread context, and 1-click actions:
+   - **Progressive Discipline**: Strike 1 (Warning), Strike 2 (24-hour timeout), Strike 3 (7-day timeout), Strike 4 (Permanent ban). Enforced server-side on all write requests.
+   - **Appeals Workflow**: Students can submit strike appeals, reviewed directly in the moderator console.
+   - **Audit Logging**: Every action (`hide`, `restore`, `dismiss`, `strike`) is immutably recorded in `/moderatorAuditLog`.
+
 ---
 
 ## Features

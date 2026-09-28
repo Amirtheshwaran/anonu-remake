@@ -96,7 +96,11 @@ export default function ProfileScreen() {
 
   const handleResolveReport = async (reportId: string, postId?: string | null, hidePost = false) => {
     try {
-      await postService.resolveReport(reportId, postId || undefined, hidePost);
+      await postService.resolveReport({
+        reportId,
+        postId: postId || undefined,
+        action: hidePost ? 'hide' : 'dismiss',
+      });
       setReports((prev) => prev.filter((r) => r.id !== reportId));
     } catch (err) {
       console.error('Resolve report error:', err);
@@ -118,15 +122,20 @@ export default function ProfileScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>CAMPUS IDENTITY</Text>
-        <BrutalistButton
-          text="LOG OUT"
-          backgroundColor={AnonUTheme.downvoteRed}
-          textColor={AnonUTheme.white}
-          shadowOffset={{ width: 2, height: 2 }}
-          paddingVertical={6}
-          paddingHorizontal={10}
-          onPress={handleLogOut}
-        />
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          <Pressable onPress={() => router.push('/settings')} style={styles.settingsBtn}>
+            <Text style={styles.settingsIcon}>⚙️</Text>
+          </Pressable>
+          <BrutalistButton
+            text="LOG OUT"
+            backgroundColor={AnonUTheme.downvoteRed}
+            textColor={AnonUTheme.white}
+            shadowOffset={{ width: 2, height: 2 }}
+            paddingVertical={6}
+            paddingHorizontal={10}
+            onPress={handleLogOut}
+          />
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -384,6 +393,19 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: AnonUTheme.black,
     letterSpacing: 0.3,
+  },
+  settingsBtn: {
+    width: 32,
+    height: 32,
+    backgroundColor: AnonUTheme.bgSurface,
+    borderColor: AnonUTheme.black,
+    borderWidth: AnonUTheme.borderWidthThin,
+    borderRadius: AnonUTheme.radiusSm,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  settingsIcon: {
+    fontSize: 16,
   },
   scrollContent: {
     paddingBottom: 30,

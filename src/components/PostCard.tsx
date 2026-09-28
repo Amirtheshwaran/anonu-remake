@@ -21,6 +21,7 @@ interface PostCardProps {
   onComment: () => void;
   onRepost: () => void;
   onReport: () => void;
+  onOptions?: () => void;
   onPollVote?: (index: number) => void;
 }
 
@@ -34,6 +35,7 @@ export const PostCard: React.FC<PostCardProps> = ({
   onComment,
   onRepost,
   onReport,
+  onOptions,
   onPollVote,
 }) => {
   const isAnon = post.identity === 'anonymous';
@@ -133,8 +135,8 @@ export const PostCard: React.FC<PostCardProps> = ({
           </View>
         )}
 
-        {/* Report Button */}
-        <Pressable onPress={onReport} style={styles.moreButton}>
+        {/* Options / Report Button */}
+        <Pressable onPress={onOptions || onReport} style={styles.moreButton}>
           <Text style={styles.moreDots}>⋮</Text>
         </Pressable>
       </View>

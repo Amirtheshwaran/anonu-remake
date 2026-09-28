@@ -1,11 +1,21 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { postService } from '../services/postService';
-import { FeedSort } from '../types/post';
+import { FeedSort, PostModel } from '../types/post';
 
-export function useFeed(sort: FeedSort = 'hot', campusId?: string) {
+export function useFeed(
+  sort: FeedSort = 'hot',
+  campusId?: string,
+  blockedPostIds?: Set<string>
+) {
   return useQuery({
-    queryKey: ['feed', sort, campusId],
-    queryFn: () => postService.getFeed(sort, 25, campusId),
+    queryKey: ['feed', sort, campusId, blockedPostIds ? Array.from(blockedPostIds) : []],
+    queryFn: async () => {
+      const posts = await postService.getFeed(sort, 25, campusId);
+      if (blockedPostIds && blockedPostIds.size > 0) {
+        return posts.filter((p) => !blockedPostIds.has(p.id));
+      }
+      return posts;
+    },
     staleTime: 1000 * 30, // 30 seconds
   });
 }

@@ -9,6 +9,7 @@ export const AnonUTheme = {
   black: '#000000',
   white: '#FFFFFF',
   border: '#000000',
+  borderMuted: '#E0E0E0',
 
   // Vibrant Pop Accents (Neo-Brutalism Staples)
   popYellow: '#FFE600',

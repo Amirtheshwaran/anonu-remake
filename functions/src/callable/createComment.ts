@@ -3,6 +3,7 @@ import * as admin from 'firebase-admin';
 import { MAX_COMMENT_LENGTH } from '../constants';
 import { generatePostPseudonym } from '../utils/pseudonym';
 import { checkRateLimit } from '../utils/rateLimit';
+import { screenContent } from '../utils/moderation';
 
 interface CreateCommentData {
   postId: string;
@@ -25,6 +26,31 @@ export const createComment = onCall(async (request) => {
   // Rate limit: 40 comments per hour
   await checkRateLimit(uid, 'comment', 40);
 
+  const db = admin.firestore();
+
+  // Check strike penalties
+  const userDoc = await db.collection('users').doc(uid).get();
+  const userData = userDoc.data() || {};
+
+  if (userData.isBanned) {
+    throw new HttpsError(
+      'permission-denied',
+      'Your account has been permanently suspended for repeated policy violations.'
+    );
+  }
+
+  if (userData.timeoutUntil) {
+    const timeoutDate = userData.timeoutUntil.toDate
+      ? userData.timeoutUntil.toDate()
+      : new Date(userData.timeoutUntil);
+    if (timeoutDate > new Date()) {
+      throw new HttpsError(
+        'permission-denied',
+        `Your commenting privileges are suspended until ${timeoutDate.toLocaleString()} due to active strikes.`
+      );
+    }
+  }
+
   const data: CreateCommentData = request.data;
   const content = (data.content || '').trim();
 
@@ -38,7 +64,6 @@ export const createComment = onCall(async (request) => {
     throw new HttpsError('invalid-argument', `Comment exceeds max length of ${MAX_COMMENT_LENGTH} characters.`);
   }
 
-  const db = admin.firestore();
   const postRef = db.collection('posts').doc(data.postId);
   const postSnap = await postRef.get();
 
@@ -50,6 +75,10 @@ export const createComment = onCall(async (request) => {
   if (postData.isHidden) {
     throw new HttpsError('failed-precondition', 'Cannot comment on a hidden post.');
   }
+
+  // Screen comment
+  const screening = screenContent(content);
+  const isHidden = screening.action === 'auto_hide';
 
   const commentRef = db.collection('comments').doc();
   const commentId = commentRef.id;
@@ -69,6 +98,7 @@ export const createComment = onCall(async (request) => {
   }
 
   const now = admin.firestore.FieldValue.serverTimestamp();
+  const campusId = postData.campusId || 'uncc';
 
   await db.runTransaction(async (transaction) => {
     // 1. Private comment author mapping
@@ -78,8 +108,6 @@ export const createComment = onCall(async (request) => {
       postId: data.postId,
       createdAt: now,
     });
-
-    const campusId = postData.campusId || 'uncc';
 
     // 2. Public comment doc (NO authorUid)
     transaction.set(commentRef, {
@@ -94,6 +122,7 @@ export const createComment = onCall(async (request) => {
       downvotes: 0,
       createdAt: now,
       parentCommentId: data.parentCommentId || null,
+      isHidden,
     });
 
     // 3. Increment commentCount on post
@@ -101,6 +130,20 @@ export const createComment = onCall(async (request) => {
       commentCount: admin.firestore.FieldValue.increment(1),
     });
   });
+
+  // 4. Enqueue report if screened
+  if (screening.action !== 'publish' || screening.isCrisis) {
+    await db.collection('reports').add({
+      commentId,
+      postId: data.postId,
+      campusId,
+      reason: screening.flagReason || 'Comment screening match',
+      severity: screening.severity,
+      status: 'pending',
+      screeningScores: screening.toxicityScores,
+      createdAt: now,
+    });
+  }
 
   // Handle Notifications asynchronously
   try {
@@ -123,7 +166,7 @@ export const createComment = onCall(async (request) => {
     }
 
     // Only notify if author is not commenting on their own content
-    if (targetUid && targetUid !== uid) {
+    if (targetUid && targetUid !== uid && !isHidden) {
       const actorLabel = data.identity === 'identified' && displayName ? displayName : pseudonym;
       const message = notifType === 'reply'
         ? `@${actorLabel} replied to your comment: "${content.slice(0, 50)}"`
@@ -143,5 +186,5 @@ export const createComment = onCall(async (request) => {
     console.error('Error dispatching comment notification:', err);
   }
 
-  return { commentId, pseudonym };
+  return { commentId, pseudonym, isHidden };
 });

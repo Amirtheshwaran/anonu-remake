@@ -33,6 +33,8 @@ export interface PostModel {
   isRepost: boolean;
   originalPostId?: string | null;
   originalAuthorPseudonym?: string | null;
+  moderationSeverity?: 'low' | 'medium' | 'high' | 'crisis';
+  moderationReason?: string | null;
 }
 
 export interface CommentModel {
