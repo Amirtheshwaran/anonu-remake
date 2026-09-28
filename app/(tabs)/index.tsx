@@ -10,6 +10,7 @@ import {
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { AnonUTheme } from '../../src/constants/theme';
+import { DEFAULT_CAMPUSES } from '../../src/constants/campuses';
 import { FeedSort, PostModel } from '../../src/types/post';
 import { useFeed, useVoteMutation, useUserVote } from '../../src/hooks/useFeed';
 import { useMoodBoard, useCheckInMood } from '../../src/hooks/useMood';
@@ -26,10 +27,13 @@ import { BrutalistBottomBar } from './_layout';
 export default function FeedScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const selectedCampusId = useAuthStore((s) => s.selectedCampusId);
+  const currentCampus = DEFAULT_CAMPUSES[selectedCampusId] || DEFAULT_CAMPUSES['uncc'];
+
   const [selectedSort, setSelectedSort] = useState<FeedSort>('hot');
 
-  const { data: posts, isLoading, isRefetching, refetch } = useFeed(selectedSort);
-  const { counts: moodCounts } = useMoodBoard();
+  const { data: posts, isLoading, isRefetching, refetch } = useFeed(selectedSort, selectedCampusId);
+  const { counts: moodCounts } = useMoodBoard(selectedCampusId);
   const checkInMutation = useCheckInMood();
   const repostMutation = useRepostMutation();
 
@@ -78,10 +82,16 @@ export default function FeedScreen() {
     <SafeAreaView style={styles.safeArea}>
       {/* App Bar */}
       <View style={styles.appBar}>
-        <View style={styles.logoBadgeWrapper}>
-          <View style={styles.logoShadow} />
-          <View style={styles.logoBadge}>
-            <Text style={styles.logoText}>AnonU</Text>
+        <View style={styles.brandRow}>
+          <View style={styles.logoBadgeWrapper}>
+            <View style={styles.logoShadow} />
+            <View style={styles.logoBadge}>
+              <Text style={styles.logoText}>AnonU</Text>
+            </View>
+          </View>
+
+          <View style={styles.campusBadge}>
+            <Text style={styles.campusBadgeText}>{currentCampus.shortName.toUpperCase()}</Text>
           </View>
         </View>
 
@@ -99,6 +109,7 @@ export default function FeedScreen() {
       {/* Campus Mood Bar */}
       <MoodBar
         moodCounts={moodCounts}
+        campusName={currentCampus.shortName}
         lastMood={user?.lastMood}
         currentStreak={user?.currentStreak}
         onCheckIn={async (mood) => {
@@ -259,6 +270,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 10,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  campusBadge: {
+    backgroundColor: AnonUTheme.black,
+    borderRadius: AnonUTheme.radiusSm,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  campusBadgeText: {
+    color: AnonUTheme.popYellow,
+    fontSize: 10.5,
+    fontWeight: '900',
+    letterSpacing: 0.8,
   },
   logoBadgeWrapper: {
     position: 'relative',

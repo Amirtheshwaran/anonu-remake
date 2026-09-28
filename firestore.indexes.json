@@ -5,6 +5,42 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "isHidden", "order": "ASCENDING" },
+        { "fieldPath": "campusId", "order": "ASCENDING" },
+        { "fieldPath": "hotScore", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isHidden", "order": "ASCENDING" },
+        { "fieldPath": "campusId", "order": "ASCENDING" },
+        { "fieldPath": "score", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isHidden", "order": "ASCENDING" },
+        { "fieldPath": "campusId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "campusId", "order": "ASCENDING" },
+        { "fieldPath": "tags", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "isHidden", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isHidden", "order": "ASCENDING" },
         { "fieldPath": "hotScore", "order": "DESCENDING" }
       ]
     },

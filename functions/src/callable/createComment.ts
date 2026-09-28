@@ -79,9 +79,12 @@ export const createComment = onCall(async (request) => {
       createdAt: now,
     });
 
+    const campusId = postData.campusId || 'uncc';
+
     // 2. Public comment doc (NO authorUid)
     transaction.set(commentRef, {
       postId: data.postId,
+      campusId,
       identity: data.identity,
       pseudonym,
       authorProfileId,

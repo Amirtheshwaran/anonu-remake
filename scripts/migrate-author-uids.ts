@@ -69,6 +69,11 @@ export async function runMigration(options: { dryRun?: boolean } = {}) {
       }
     }
 
+    if (!postData.campusId) {
+      needsUpdate = true;
+      postUpdates.campusId = 'uncc';
+    }
+
     // Migrate poll.userVotes if present
     if (poll && poll.userVotes && typeof poll.userVotes === 'object') {
       const userVotesMap = poll.userVotes as Record<string, any>;

@@ -67,8 +67,12 @@ CLIENT                          CLOUD FUNCTIONS (2nd Gen)              FIRESTORE
 7. **Metadata Sanitization & Storage Staging**:
    Post photo attachments are processed through `expo-image-manipulator` on the device to strip EXIF GPS coordinates and camera metadata before being uploaded to temporary staging paths.
 
-8. **Verified Campus Email Guard**:
-   All write operations (`createPost`, `createComment`, `vote`, `report`) require an authenticated Firebase token with `email_verified == true`. Anonymous guest sessions are restricted to read-only browsing.
+8. **Verified Campus Email Guard & Multi-Campus Isolation**:
+   - Sign-ups are restricted strictly to validated university domains (`charlotte.edu`, `ncsu.edu`, `unc.edu`, `vt.edu`, `duke.edu`, etc.).
+   - The user's `campusId` is derived deterministically from their verified email domain.
+   - All feeds, trending search topics, live mood pulses, and channels are partitioned per-campus. Students only see and interact with their own university community.
+   - All write operations (`createPost`, `createComment`, `vote`, `report`) require an authenticated Firebase token with `email_verified == true`.
+   - 3-Screen Onboarding walks new students through thread-based anonymity, expiring posts, and requires explicit agreement to Campus Community Rules (stamped with a timestamp on the user's private record).
 
 ---
 

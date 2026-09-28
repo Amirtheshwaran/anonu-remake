@@ -55,6 +55,8 @@ export const checkInMood = onCall(async (request) => {
       longestStreak = Math.max(oldLongest, 1);
     }
 
+    const campusId = userData.campusId || 'uncc';
+
     // 1. Update user's private document
     transaction.set(
       userRef,
@@ -68,11 +70,12 @@ export const checkInMood = onCall(async (request) => {
       { merge: true }
     );
 
-    // 2. Increment aggregated daily count (anonymous aggregate counter)
-    const dailyRef = db.collection('moodDaily').doc(todayStr);
+    // 2. Increment aggregated daily count (anonymous aggregate counter scoped by campus)
+    const dailyRef = db.collection('moodDaily').doc(`${campusId}_${todayStr}`);
     transaction.set(
       dailyRef,
       {
+        campusId,
         date: todayStr,
         [`counts.${mood}`]: admin.firestore.FieldValue.increment(1),
         totalCheckins: admin.firestore.FieldValue.increment(1),
@@ -80,10 +83,22 @@ export const checkInMood = onCall(async (request) => {
       { merge: true }
     );
 
-    // 3. Increment live mood counter
-    const liveRef = db.collection('moodLive').doc('current');
+    // 3. Increment live mood counter scoped by campus
+    const liveRef = db.collection('moodLive').doc(campusId);
     transaction.set(
       liveRef,
+      {
+        campusId,
+        [`counts.${mood}`]: admin.firestore.FieldValue.increment(1),
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    // Legacy fallback doc for backwards compatibility
+    const fallbackRef = db.collection('moodLive').doc('current');
+    transaction.set(
+      fallbackRef,
       {
         [`counts.${mood}`]: admin.firestore.FieldValue.increment(1),
         lastUpdated: admin.firestore.FieldValue.serverTimestamp(),

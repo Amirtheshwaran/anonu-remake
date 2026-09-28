@@ -3,6 +3,7 @@ import * as admin from 'firebase-admin';
 import { MAX_POST_LENGTH, MAX_TAGS, MAX_IMAGES, MAX_POLL_OPTIONS } from '../constants';
 import { generatePostPseudonym } from '../utils/pseudonym';
 import { checkRateLimit } from '../utils/rateLimit';
+import { getCampusByEmail } from '../utils/campus';
 
 interface CreatePostData {
   content: string;
@@ -43,6 +44,25 @@ export const createPost = onCall(async (request) => {
     throw new HttpsError('invalid-argument', `Post exceeds max length of ${MAX_POST_LENGTH} characters.`);
   }
 
+  const db = admin.firestore();
+  const userDoc = await db.collection('users').doc(uid).get();
+  const userData = userDoc.data() || {};
+
+  // Verify onboarding and rules acceptance
+  if (!userData.rulesAcceptedAt && !isEmulated) {
+    throw new HttpsError('failed-precondition', 'Community rules must be accepted before posting.');
+  }
+
+  // Derive or extract campusId
+  let campusId = userData.campusId;
+  if (!campusId && token.email) {
+    const campus = getCampusByEmail(token.email);
+    campusId = campus ? campus.campusId : 'uncc';
+  }
+  if (!campusId) {
+    campusId = 'uncc';
+  }
+
   const tags = (data.tags || []).slice(0, MAX_TAGS).map((t) => t.toLowerCase().trim().replace(/^#/, ''));
   const imageUrls = (data.imageUrls || []).slice(0, MAX_IMAGES);
 
@@ -79,7 +99,6 @@ export const createPost = onCall(async (request) => {
     );
   }
 
-  const db = admin.firestore();
   const postRef = db.collection('posts').doc();
   const postId = postRef.id;
 
@@ -109,11 +128,13 @@ export const createPost = onCall(async (request) => {
     const authorRef = db.collection('postAuthors').doc(postId);
     transaction.set(authorRef, {
       uid,
+      campusId,
       createdAt: now,
     });
 
     // 2. Public post document (NO authorUid)
     transaction.set(postRef, {
+      campusId,
       identity: data.identity,
       pseudonym,
       authorProfileId,
@@ -148,5 +169,5 @@ export const createPost = onCall(async (request) => {
     );
   });
 
-  return { postId, pseudonym };
+  return { postId, pseudonym, campusId };
 });

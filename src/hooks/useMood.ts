@@ -4,19 +4,33 @@ import { firestore } from '../services/firebase';
 import { authService } from '../services/authService';
 import { useAuthStore } from '../stores/useAuthStore';
 
-export function useMoodBoard() {
+export function useMoodBoard(campusId?: string) {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
+  const targetCampus = campusId || 'uncc';
+
   useEffect(() => {
-    // Listen to real-time aggregate campus live mood
+    // Listen to real-time aggregate campus live mood for specific campus
     const unsubscribe = firestore()
       .collection('moodLive')
-      .doc('current')
+      .doc(targetCampus)
       .onSnapshot(
         (doc) => {
           if (doc.exists) {
             setCounts(doc.data()?.counts || {});
+          } else {
+            // Check fallback current doc if campus doc not yet seeded
+            firestore()
+              .collection('moodLive')
+              .doc('current')
+              .get()
+              .then((fallbackDoc) => {
+                if (fallbackDoc.exists) {
+                  setCounts(fallbackDoc.data()?.counts || {});
+                }
+              })
+              .catch(() => {});
           }
           setLoading(false);
         },
@@ -27,7 +41,7 @@ export function useMoodBoard() {
       );
 
     return () => unsubscribe();
-  }, []);
+  }, [targetCampus]);
 
   return { counts, loading };
 }

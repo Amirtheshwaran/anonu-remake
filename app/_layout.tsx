@@ -47,12 +47,17 @@ function RootNavigation() {
     if (isLoading) return;
 
     const inAuthGroup = segments[0] === 'auth';
+    const inOnboarding = segments[0] === 'onboarding';
     const isAuthenticated = !!user;
 
     if (!isAuthenticated && !inAuthGroup) {
       router.replace('/auth');
-    } else if (isAuthenticated && inAuthGroup) {
-      router.replace('/(tabs)');
+    } else if (isAuthenticated) {
+      if (user.email && !user.onboardingCompleted && !inOnboarding) {
+        router.replace('/onboarding');
+      } else if (inAuthGroup || (inOnboarding && user.onboardingCompleted)) {
+        router.replace('/(tabs)');
+      }
     }
   }, [user, isLoading, segments]);
 
@@ -76,6 +81,7 @@ function RootNavigation() {
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="auth" options={{ headerShown: false }} />
+        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen
           name="compose"
           options={{
