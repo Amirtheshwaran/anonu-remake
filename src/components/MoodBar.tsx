@@ -12,6 +12,7 @@ import { MoodCheckInSheet } from './MoodCheckInSheet';
 
 interface MoodBarProps {
   moodCounts: Record<string, number>;
+  campusName?: string;
   lastMood?: string | null;
   currentStreak?: number;
   onCheckIn: (mood: string) => Promise<void>;
@@ -19,6 +20,7 @@ interface MoodBarProps {
 
 export const MoodBar: React.FC<MoodBarProps> = ({
   moodCounts,
+  campusName,
   lastMood,
   currentStreak = 0,
   onCheckIn,
@@ -49,7 +51,7 @@ export const MoodBar: React.FC<MoodBarProps> = ({
             {sortedMoods.length === 0 ? (
               <View style={styles.emptyTicker}>
                 <Text style={styles.boltIcon}>⚡</Text>
-                <Text style={styles.tickerTitle}>CAMPUS MOOD BOARD: CHECK IN!</Text>
+                <Text style={styles.tickerTitle}>{`${(campusName || 'CAMPUS').toUpperCase()} PULSE: CHECK IN!`}</Text>
               </View>
             ) : (
               <ScrollView

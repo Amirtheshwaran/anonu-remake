@@ -2,10 +2,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { postService } from '../services/postService';
 import { FeedSort } from '../types/post';
 
-export function useFeed(sort: FeedSort = 'hot') {
+export function useFeed(sort: FeedSort = 'hot', campusId?: string) {
   return useQuery({
-    queryKey: ['feed', sort],
-    queryFn: () => postService.getFeed(sort),
+    queryKey: ['feed', sort, campusId],
+    queryFn: () => postService.getFeed(sort, 25, campusId),
     staleTime: 1000 * 30, // 30 seconds
   });
 }

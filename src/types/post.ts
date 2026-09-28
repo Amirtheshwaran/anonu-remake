@@ -10,6 +10,7 @@ export interface PollData {
 
 export interface PostModel {
   id: string;
+  campusId: string;
   identity: PostIdentity;
   pseudonym: string;
   authorProfileId?: string | null;
@@ -37,6 +38,7 @@ export interface PostModel {
 export interface CommentModel {
   id: string;
   postId: string;
+  campusId?: string;
   identity: PostIdentity;
   pseudonym: string;
   authorProfileId?: string | null;

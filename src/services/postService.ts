@@ -5,7 +5,8 @@ function parsePostDoc(doc: any): PostModel {
   const data = doc.data() || {};
   return {
     id: doc.id,
-    identity: data.identity as PostIdentity || 'anonymous',
+    campusId: data.campusId || 'uncc',
+    identity: (data.identity as PostIdentity) || 'anonymous',
     pseudonym: data.pseudonym || 'Campus Member',
     authorProfileId: data.authorProfileId || null,
     displayName: data.displayName || null,
@@ -41,6 +42,7 @@ function parseCommentDoc(doc: any): CommentModel {
   return {
     id: doc.id,
     postId: data.postId || '',
+    campusId: data.campusId || null,
     identity: (data.identity as PostIdentity) || 'anonymous',
     pseudonym: data.pseudonym || 'Campus Member',
     authorProfileId: data.authorProfileId || null,
@@ -54,8 +56,12 @@ function parseCommentDoc(doc: any): CommentModel {
 }
 
 export const postService = {
-  async getFeed(sort: FeedSort = 'hot', limit = 25): Promise<PostModel[]> {
+  async getFeed(sort: FeedSort = 'hot', limit = 25, campusId?: string): Promise<PostModel[]> {
     let query = firestore().collection('posts').where('isHidden', '==', false);
+
+    if (campusId) {
+      query = query.where('campusId', '==', campusId);
+    }
 
     switch (sort) {
       case 'hot':
@@ -115,18 +121,31 @@ export const postService = {
     return isUpvote;
   },
 
+  async getComments(postId: string): Promise<CommentModel[]> {
+    const snap = await firestore()
+      .collection('comments')
+      .where('postId', '==', postId)
+      .orderBy('createdAt', 'asc')
+      .get();
+
+    return snap.docs.map(parseCommentDoc);
+  },
+
   async createPost(params: {
     content: string;
     identity: PostIdentity;
     type: PostType;
     tags?: string[];
     imageUrls?: string[];
-    poll?: { options: string[]; durationHours?: number };
+    poll?: {
+      options: string[];
+      durationHours?: number;
+    };
     timeLimitHours?: number | null;
   }) {
     const fn = functions().httpsCallable('createPost');
     const result = await fn(params);
-    return result.data as { postId: string; pseudonym: string };
+    return result.data as { postId: string; pseudonym: string; campusId: string };
   },
 
   async createComment(params: {
@@ -140,23 +159,24 @@ export const postService = {
     return result.data as { commentId: string; pseudonym: string };
   },
 
-  async getComments(postId: string): Promise<CommentModel[]> {
-    const snap = await firestore()
-      .collection('comments')
-      .where('postId', '==', postId)
-      .orderBy('createdAt', 'asc')
-      .get();
-
-    return snap.docs.map(parseCommentDoc);
-  },
-
   async votePoll(postId: string, optionIndex: number) {
     const fn = functions().httpsCallable('votePoll');
     const result = await fn({ postId, optionIndex });
-    return result.data as { success: boolean; optionIndex: number };
+    return result.data as { success: boolean; votes: Record<string, number> };
   },
 
-  async repost(postId: string) {
+  async getUserPollVote(postId: string, uid: string): Promise<number | null> {
+    const snap = await firestore()
+      .collection('posts')
+      .doc(postId)
+      .collection('pollVotes')
+      .doc(uid)
+      .get();
+    if (!snap.exists) return null;
+    return snap.data()?.optionIndex ?? null;
+  },
+
+  async repostPost(postId: string) {
     const fn = functions().httpsCallable('repostPost');
     const result = await fn({ postId });
     return result.data as { newPostId: string; pseudonym: string };
@@ -171,26 +191,36 @@ export const postService = {
     });
   },
 
-  async searchPosts(term: string): Promise<PostModel[]> {
+  async searchPosts(term: string, campusId?: string): Promise<PostModel[]> {
     const clean = term.toLowerCase().trim().replace(/^#/, '');
     if (!clean) return [];
 
     // Tag search
-    const tagSnap = await firestore()
+    let tagQuery = firestore()
       .collection('posts')
       .where('tags', 'array-contains', clean)
-      .where('isHidden', '==', false)
-      .limit(30)
-      .get();
+      .where('isHidden', '==', false);
+
+    if (campusId) {
+      tagQuery = tagQuery.where('campusId', '==', campusId);
+    }
+
+    const tagSnap = await tagQuery.limit(30).get();
 
     if (!tagSnap.empty) {
       return tagSnap.docs.map(parsePostDoc);
     }
 
     // Fallback: Recent posts filtered in-memory
-    const recentSnap = await firestore()
+    let recentQuery = firestore()
       .collection('posts')
-      .where('isHidden', '==', false)
+      .where('isHidden', '==', false);
+
+    if (campusId) {
+      recentQuery = recentQuery.where('campusId', '==', campusId);
+    }
+
+    const recentSnap = await recentQuery
       .orderBy('createdAt', 'desc')
       .limit(50)
       .get();

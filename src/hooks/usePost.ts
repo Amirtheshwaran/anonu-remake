@@ -59,7 +59,7 @@ export function useRepostMutation() {
 
   return useMutation({
     mutationFn: async (postId: string) => {
-      return postService.repost(postId);
+      return postService.repostPost(postId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['feed'] });

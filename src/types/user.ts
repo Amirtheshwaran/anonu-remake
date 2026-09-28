@@ -1,6 +1,7 @@
 export interface UserModel {
   uid: string;
   email: string;
+  campusId: string;
   pseudonym: string;
   displayName?: string | null;
   avatarUrl?: string | null;
@@ -11,6 +12,8 @@ export interface UserModel {
   lastMood?: string | null;
   lastMoodDate?: string | null;
   isModerator?: boolean;
+  rulesAcceptedAt?: Date | null;
+  onboardingCompleted?: boolean;
   createdAt: Date;
 }
 

@@ -26,12 +26,13 @@ import { BrutalistDialog } from '../src/components/BrutalistDialog';
 export default function SearchScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const selectedCampusId = useAuthStore((s) => s.selectedCampusId);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [activeQuery, setActiveQuery] = useState('');
   const [repostTarget, setRepostTarget] = useState<PostModel | null>(null);
 
-  const { data: results, isLoading } = useSearchPosts(activeQuery);
+  const { data: results, isLoading } = useSearchPosts(activeQuery, selectedCampusId);
   const repostMutation = useRepostMutation();
 
   const handleSearch = (term: string) => {

@@ -19,6 +19,7 @@ import { postService } from '../src/services/postService';
 import { useAuthStore } from '../src/stores/useAuthStore';
 import { AnonUTheme } from '../src/constants/theme';
 import { AnonUConstants } from '../src/constants/config';
+import { DEFAULT_CAMPUSES } from '../src/constants/campuses';
 import { PostIdentity, PostType } from '../src/types/post';
 import { BrutalistCard } from '../src/components/BrutalistCard';
 import { BrutalistButton } from '../src/components/BrutalistButton';
@@ -26,6 +27,8 @@ import { BrutalistButton } from '../src/components/BrutalistButton';
 export default function ComposeScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const selectedCampusId = useAuthStore((s) => s.selectedCampusId);
+  const campus = DEFAULT_CAMPUSES[user?.campusId || selectedCampusId] || DEFAULT_CAMPUSES['uncc'];
 
   const [content, setContent] = useState('');
   const [identity, setIdentity] = useState<PostIdentity>('anonymous');
@@ -177,6 +180,14 @@ export default function ComposeScreen() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Campus Scope Banner */}
+        <View style={styles.campusScopeBanner}>
+          <Text style={styles.campusScopeLabel}>TARGET CAMPUS:</Text>
+          <View style={styles.campusScopePill}>
+            <Text style={styles.campusScopeName}>{campus.shortName.toUpperCase()}</Text>
+          </View>
+        </View>
+
         {/* Identity Selector */}
         <View style={styles.identityCard}>
           <View style={styles.identityShadow} />
@@ -495,6 +506,30 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
+  },
+  campusScopeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
+  campusScopeLabel: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: AnonUTheme.black,
+    letterSpacing: 0.5,
+  },
+  campusScopePill: {
+    backgroundColor: AnonUTheme.black,
+    borderRadius: AnonUTheme.radiusSm,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  campusScopeName: {
+    fontSize: 10.5,
+    fontWeight: '900',
+    color: AnonUTheme.popYellow,
+    letterSpacing: 0.8,
   },
   identityCard: {
     position: 'relative',
