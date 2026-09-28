@@ -1,8 +1,13 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
     function isSignedIn() {
       return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
     }
 
     function isOwner(uid) {
@@ -10,71 +15,89 @@ service cloud.firestore {
     }
 
     function isModerator() {
-      return isSignedIn()
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isModerator == true;
+      return isSignedIn() && (request.auth.token.moderator == true || request.auth.token.isModerator == true);
     }
 
-    match /users/{uid} {
-      allow read: if isSignedIn();
-      allow create: if isOwner(uid);
-      allow update: if isOwner(uid)
-        && !request.resource.data.diff(resource.data).affectedKeys()
-          .hasAny(['uid', 'pseudonym', 'isModerator', 'email']);
-      allow delete: if false;
-    }
-
+    // Public Posts (Clients cannot create/update directly; writes via Cloud Functions)
     match /posts/{postId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn()
-        && request.resource.data.authorUid == request.auth.uid;
-      allow update: if isSignedIn()
-        && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['upvotes', 'downvotes', 'commentCount', 'repostCount', 'poll', 'isHidden']);
-      allow delete: if isModerator();
+      allow create, delete: if false;
+      allow update: if false;
 
-      match /votes/{uid} {
-        allow read: if isOwner(uid);
-        allow create, update, delete: if isOwner(uid);
-      }
-
-      match /comments/{commentId} {
+      // Votes subcollection: clients record their own vote
+      match /votes/{userId} {
         allow read: if isSignedIn();
-        allow create: if isSignedIn()
-          && request.resource.data.authorUid == request.auth.uid;
-        allow update: if isSignedIn()
-          && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['upvotes', 'downvotes']);
-        allow delete: if isModerator();
+        allow write: if isEmailVerified() && isOwner(userId)
+          && request.resource.data.vote in [true, false];
       }
 
-      match /pollVotes/{uid} {
-        allow read: if isOwner(uid);
-        allow create: if isOwner(uid)
-          && !exists(/databases/$(database)/documents/posts/$(postId)/pollVotes/$(uid));
-        allow update, delete: if false;
+      // Private poll votes subcollection: strictly owner-only
+      match /pollVotes/{userId} {
+        allow read: if isOwner(userId);
+        allow write: if isEmailVerified() && isOwner(userId);
       }
     }
 
-    match /moodBoard/{entryId} {
+    // Private author mappings (Owner can read their own list; writes locked to Cloud Functions)
+    match /postAuthors/{postId} {
+      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /commentAuthors/{commentId} {
+      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+
+    // Comments (Creation via Cloud Functions; read public)
+    match /comments/{commentId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn()
-        && request.resource.data.keys().hasOnly(['mood', 'createdAt']);
-      allow update, delete: if false;
+      allow create, update, delete: if false;
     }
 
-    match /notifications/{notifId} {
-      allow read: if isSignedIn()
-        && resource.data.recipientUid == request.auth.uid;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn()
-        && resource.data.recipientUid == request.auth.uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
+    // Split Profiles: Private User Account Data (owner only)
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Split Profiles: Public Profile Data (public read, owner write only for display info)
+    match /profiles/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId)
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['displayName', 'avatarUrl', 'updatedAt']);
       allow delete: if false;
     }
 
+    // Notifications (Read and mark read only by recipient; created by server)
+    match /notifications/{notifId} {
+      allow read: if isSignedIn() && resource.data.recipientUid == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.recipientUid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
+      allow create, delete: if false;
+    }
+
+    // Reports (Created by verified campus members; inspected by moderators)
     match /reports/{reportId} {
-      allow create: if isSignedIn();
+      allow create: if isEmailVerified();
       allow read, update, delete: if isModerator();
+    }
+
+    // Daily Mood aggregates & live board (Public read for campus pulse; written by Functions)
+    match /moodDaily/{date} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /moodLive/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // Rate limits (Internal server collection)
+    match /rateLimits/{docId} {
+      allow read, write: if false;
     }
   }
 }

@@ -5,7 +5,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "isHidden", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        { "fieldPath": "hotScore", "order": "DESCENDING" }
       ]
     },
     {
@@ -13,14 +13,13 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "isHidden", "order": "ASCENDING" },
-        { "fieldPath": "upvotes", "order": "DESCENDING" }
+        { "fieldPath": "score", "order": "DESCENDING" }
       ]
     },
     {
       "collectionGroup": "posts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "authorUid", "order": "ASCENDING" },
         { "fieldPath": "isHidden", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
@@ -30,8 +29,23 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "tags", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "isHidden", "order": "ASCENDING" },
+        { "fieldPath": "isHidden", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "postAuthors",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "uid", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "comments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "postId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
       ]
     },
     {
@@ -46,7 +60,7 @@
       "collectionGroup": "reports",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "resolved", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     }

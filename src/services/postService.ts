@@ -1,0 +1,241 @@
+import { firestore, functions } from './firebase';
+import { PostModel, CommentModel, FeedSort, PostIdentity, PostType } from '../types/post';
+
+function parsePostDoc(doc: any): PostModel {
+  const data = doc.data() || {};
+  return {
+    id: doc.id,
+    identity: data.identity as PostIdentity || 'anonymous',
+    pseudonym: data.pseudonym || 'Campus Member',
+    authorProfileId: data.authorProfileId || null,
+    displayName: data.displayName || null,
+    avatarUrl: data.avatarUrl || null,
+    content: data.content || '',
+    type: (data.type as PostType) || 'text',
+    tags: Array.isArray(data.tags) ? data.tags : [],
+    imageUrls: Array.isArray(data.imageUrls) ? data.imageUrls : [],
+    poll: data.poll
+      ? {
+          options: data.poll.options || [],
+          votes: data.poll.votes || {},
+          endsAt: data.poll.endsAt ? data.poll.endsAt.toDate() : new Date(),
+        }
+      : null,
+    upvotes: data.upvotes || 0,
+    downvotes: data.downvotes || 0,
+    score: data.score || 0,
+    hotScore: data.hotScore || 0,
+    commentCount: data.commentCount || 0,
+    repostCount: data.repostCount || 0,
+    createdAt: data.createdAt ? data.createdAt.toDate() : new Date(),
+    expiresAt: data.expiresAt ? data.expiresAt.toDate() : null,
+    isHidden: data.isHidden || false,
+    isRepost: data.isRepost || false,
+    originalPostId: data.originalPostId || null,
+    originalAuthorPseudonym: data.originalAuthorPseudonym || null,
+  };
+}
+
+function parseCommentDoc(doc: any): CommentModel {
+  const data = doc.data() || {};
+  return {
+    id: doc.id,
+    postId: data.postId || '',
+    identity: (data.identity as PostIdentity) || 'anonymous',
+    pseudonym: data.pseudonym || 'Campus Member',
+    authorProfileId: data.authorProfileId || null,
+    displayName: data.displayName || null,
+    content: data.content || '',
+    upvotes: data.upvotes || 0,
+    downvotes: data.downvotes || 0,
+    createdAt: data.createdAt ? data.createdAt.toDate() : new Date(),
+    parentCommentId: data.parentCommentId || null,
+  };
+}
+
+export const postService = {
+  async getFeed(sort: FeedSort = 'hot', limit = 25): Promise<PostModel[]> {
+    let query = firestore().collection('posts').where('isHidden', '==', false);
+
+    switch (sort) {
+      case 'hot':
+        query = query.orderBy('hotScore', 'desc');
+        break;
+      case 'recent':
+        query = query.orderBy('createdAt', 'desc');
+        break;
+      case 'top':
+        query = query.orderBy('score', 'desc');
+        break;
+    }
+
+    const snap = await query.limit(limit).get();
+    const now = Date.now();
+
+    return snap.docs
+      .map(parsePostDoc)
+      .filter((p) => !p.expiresAt || new Date(p.expiresAt).getTime() > now);
+  },
+
+  async getPost(postId: string): Promise<PostModel | null> {
+    const doc = await firestore().collection('posts').doc(postId).get();
+    if (!doc.exists) return null;
+    return parsePostDoc(doc);
+  },
+
+  async getUserVote(postId: string, uid: string): Promise<boolean | null> {
+    const voteDoc = await firestore()
+      .collection('posts')
+      .doc(postId)
+      .collection('votes')
+      .doc(uid)
+      .get();
+    if (!voteDoc.exists) return null;
+    return voteDoc.data()?.vote ?? null;
+  },
+
+  async vote(postId: string, uid: string, isUpvote: boolean) {
+    const voteRef = firestore()
+      .collection('posts')
+      .doc(postId)
+      .collection('votes')
+      .doc(uid);
+
+    const currentSnap = await voteRef.get();
+    if (currentSnap.exists && currentSnap.data()?.vote === isUpvote) {
+      // Toggle off / cancel vote
+      await voteRef.delete();
+      return null;
+    }
+
+    await voteRef.set({
+      vote: isUpvote,
+      updatedAt: firestore.FieldValue.serverTimestamp(),
+    });
+    return isUpvote;
+  },
+
+  async createPost(params: {
+    content: string;
+    identity: PostIdentity;
+    type: PostType;
+    tags?: string[];
+    imageUrls?: string[];
+    poll?: { options: string[]; durationHours?: number };
+    timeLimitHours?: number | null;
+  }) {
+    const fn = functions().httpsCallable('createPost');
+    const result = await fn(params);
+    return result.data as { postId: string; pseudonym: string };
+  },
+
+  async createComment(params: {
+    postId: string;
+    content: string;
+    identity: PostIdentity;
+    parentCommentId?: string | null;
+  }) {
+    const fn = functions().httpsCallable('createComment');
+    const result = await fn(params);
+    return result.data as { commentId: string; pseudonym: string };
+  },
+
+  async getComments(postId: string): Promise<CommentModel[]> {
+    const snap = await firestore()
+      .collection('comments')
+      .where('postId', '==', postId)
+      .orderBy('createdAt', 'asc')
+      .get();
+
+    return snap.docs.map(parseCommentDoc);
+  },
+
+  async votePoll(postId: string, optionIndex: number) {
+    const fn = functions().httpsCallable('votePoll');
+    const result = await fn({ postId, optionIndex });
+    return result.data as { success: boolean; optionIndex: number };
+  },
+
+  async repost(postId: string) {
+    const fn = functions().httpsCallable('repostPost');
+    const result = await fn({ postId });
+    return result.data as { newPostId: string; pseudonym: string };
+  },
+
+  async reportPost(postId: string, reason: string) {
+    return firestore().collection('reports').add({
+      postId,
+      reason,
+      status: 'pending',
+      createdAt: firestore.FieldValue.serverTimestamp(),
+    });
+  },
+
+  async searchPosts(term: string): Promise<PostModel[]> {
+    const clean = term.toLowerCase().trim().replace(/^#/, '');
+    if (!clean) return [];
+
+    // Tag search
+    const tagSnap = await firestore()
+      .collection('posts')
+      .where('tags', 'array-contains', clean)
+      .where('isHidden', '==', false)
+      .limit(30)
+      .get();
+
+    if (!tagSnap.empty) {
+      return tagSnap.docs.map(parsePostDoc);
+    }
+
+    // Fallback: Recent posts filtered in-memory
+    const recentSnap = await firestore()
+      .collection('posts')
+      .where('isHidden', '==', false)
+      .orderBy('createdAt', 'desc')
+      .limit(50)
+      .get();
+
+    return recentSnap.docs
+      .map(parsePostDoc)
+      .filter(
+        (p) =>
+          p.content.toLowerCase().includes(clean) ||
+          p.tags.some((t) => t.toLowerCase().includes(clean))
+      );
+  },
+
+  async getUserPosts(uid: string): Promise<PostModel[]> {
+    // Query private author mapping that the user owns
+    const authorSnap = await firestore()
+      .collection('postAuthors')
+      .where('uid', '==', uid)
+      .orderBy('createdAt', 'desc')
+      .limit(50)
+      .get();
+
+    if (authorSnap.empty) return [];
+
+    const postIds = authorSnap.docs.map((d) => d.id);
+    const postDocs = await Promise.all(
+      postIds.map((id) => firestore().collection('posts').doc(id).get())
+    );
+
+    return postDocs.filter((d) => d.exists).map(parsePostDoc);
+  },
+
+  async getReports() {
+    const snap = await firestore()
+      .collection('reports')
+      .where('status', '==', 'pending')
+      .orderBy('createdAt', 'desc')
+      .limit(30)
+      .get();
+
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  },
+
+  async resolveReport(reportId: string, postId?: string, hidePost?: boolean) {
+    const fn = functions().httpsCallable('resolveReport');
+    return fn({ reportId, postId, hidePost });
+  },
+};

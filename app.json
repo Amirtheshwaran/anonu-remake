@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "AnonU",
+    "slug": "anonu",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "anonu",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#FBF9F2"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.amirthesh.anonu"
+    },
+    "android": {
+      "package": "com.example.anonu",
+      "googleServicesFile": "./google-services.json"
+    },
+    "plugins": [
+      "expo-router",
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
+      "@react-native-firebase/firestore",
+      "@react-native-firebase/storage",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "AnonU needs access to your photos to attach images to publications."
+        }
+      ]
+    ]
+  }
+}

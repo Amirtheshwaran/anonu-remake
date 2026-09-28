@@ -1,17 +1,15 @@
 # AnonU 🎭
 
-> **The uncensored, zero-dox campus microblog for students.**  
+> **The uncensored, zero-dox campus microblog for university students.**  
 > Post anonymously when you need to rant about midterms. Post under your real name when you're hosting an event. No fake clout, no algorithm manipulation, just real campus pulse.
 
 <br/>
 
 <p align="center">
-  <img src="assets/images/preview.jpg" alt="AnonU App Preview" width="850" style="border-radius: 12px; border: 3px solid black; box-shadow: 6px 6px 0px #000;" />
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/Flutter-3.44+-02569B?style=for-the-badge&logo=flutter&logoColor=white" alt="Flutter" />
-  <img src="https://img.shields.io/badge/Firebase-Auth%20%7C%20Firestore-FFCA28?style=for-the-badge&logo=firebase&logoColor=black" alt="Firebase" />
+  <img src="https://img.shields.io/badge/React_Native-0.76-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React Native" />
+  <img src="https://img.shields.io/badge/Expo-SDK_52-000020?style=for-the-badge&logo=expo&logoColor=white" alt="Expo" />
+  <img src="https://img.shields.io/badge/TypeScript-Strict-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Firebase-Auth%20%7C%20Firestore%20%7C%20Storage%20%7C%20Functions-FFCA28?style=for-the-badge&logo=firebase&logoColor=black" alt="Firebase" />
   <img src="https://img.shields.io/badge/Style-Neo--Brutalism-FFE600?style=for-the-badge&logoColor=black" alt="Neo-Brutalism" />
   <img src="https://img.shields.io/badge/License-MIT-00F090?style=for-the-badge&logoColor=black" alt="MIT License" />
 </p>
@@ -20,115 +18,208 @@
 
 ## Why I Built This
 
-Most campus social apps are either completely ruined by ads or turn into toxic cesspools because there’s no accountability. 
+Most campus social apps either get ruined by ads or turn into toxic cesspools because there is no balance between freedom of expression and accountability.
 
 AnonU is built around a simple premise: **you control your identity on every single post.**
 
-- Need to vent about a terrible dorm situation or ask an embarrassing freshman question? Flip on your **Anonymous Mask** (`Cyan Kestrel`, `Solar Badger`, etc.). Your real identity is never exposed to other students.
-- Selling football tickets, looking for a roommate, or running a club hackathon? Flip on your **Verified Profile** so people can reach out to you directly.
+- Need to vent about a terrible dorm situation or ask an embarrassing freshman question? Flip on your **Anonymous Mask** (`Cyan Kestrel`, `Solar Badger`, etc.). Your real identity is never exposed to other students or in public database records.
+- Selling football tickets, looking for a roommate, or running a club hackathon? Flip on your **Verified Profile** so classmates can identify you and reach out directly.
 
-The entire UI is built with a **Neo-Brutalist** aesthetic — thick black outlines, hard offset shadows, high-contrast typography, and tactile spring feedback on every tap.
+The entire interface is crafted with a **Neo-Brutalist** design language — bold 3px black borders, stark contrast, hard zero-blur offset shadows, vibrant pop accents (`#FFE600` yellow, `#00F090` mint, `#00E5FF` cyan, `#FF5A1F` orange), and tactile physical press feedback.
 
 ---
 
-## What's Packed Inside
+## How Anonymity Works in AnonU
 
-### 🎭 Smart Pseudonym Engine
-Every anonymous post gets assigned a deterministic animal pseudonym and its own signature pop color stamp. The backend links the post to your UID for spam/abuse moderation, but clients only ever see the mask.
+Privacy in AnonU is enforced by cryptographic and database architecture rather than client-side promises.
 
-### ⏳ Self-Destructing Posts (TTL)
-Not every rant needs to live on the internet forever. Set your post to expire in **1h, 6h, 12h, 24h, 48h, or Never**. Expired posts disappear from the feeds automatically.
+```text
+CLIENT                          CLOUD FUNCTIONS (2nd Gen)              FIRESTORE
+┌─────────────────────────┐     ┌───────────────────────────────┐     ┌───────────────────────────────┐
+│ Post Composer           │     │ - Enforce verified .edu token │     │ posts/{id}                    │
+│ - Strips EXIF metadata  │────▶│ - Rate-limit per user UID     │────▶│ (NO authorUid present)        │
+│ - Calls createPost()    │     │ - HMAC-SHA256(uid + postId)   │     │                               │
+└─────────────────────────┘     │ - Atomic batch write          │     │ postAuthors/{id}              │
+                                └───────────────────────────────┘     │ (Strictly private mapping)    │
+                                                                      └───────────────────────────────┘
+```
 
-### 📊 Live Polls & Image Galleries
-- Attach live polls with animated vote progress meters and letter stamps (`[A]`, `[B]`, `[C]`, `[D]`).
-- Attach up to 4 high-res photos with a built-in full-screen zoomable viewer.
+1. **Zero `authorUid` in Public Documents**:
+   Public documents (`posts/{id}` and `comments/{id}`) do not contain user UIDs. When a post is created anonymously, an unforgeable server mapping is recorded in private collections (`postAuthors/{id}` and `commentAuthors/{id}`). Only Cloud Functions and the author themselves (to display their own archive) can ever query this mapping. Other students inspecting network payloads or Firestore documents cannot retrieve the author's UID.
 
-### 💬 Thread Tree (Recursive Nested Comments)
-Real conversation threading with visual branch lines so you can actually follow multi-level reply debates without losing track of who is talking to who.
+2. **Cryptographic Server Pseudonyms**:
+   Pseudonyms are generated server-side using `HMAC-SHA256(uid + ":" + postId, secretSalt)`. Because the secret salt lives exclusively on the server, third parties cannot reverse-engineer or correlate pseudonyms across different posts. A user has a consistent mask within a single thread, but appears under completely different pseudonyms on other threads.
 
-### 🔥 Campus Mood Board & Streaks
-Check in once a day with how you're feeling (`🔥 Hyped`, `😊 Good`, `😐 Meh`, `😓 Stressed`, `😞 Low`, `😴 Tired`). Your vote joins the aggregate campus vibe chart, and you keep your daily flame streak alive.
+3. **Split User Profiles**:
+   User accounts are partitioned into two distinct collections:
+   - `users/{uid}`: Strictly private (owner-only access in security rules). Stores university email, permanent mask, streaks, and check-in history.
+   - `profiles/{uid}`: Publicly readable. Stores verified display name and avatar photo for identified publications.
 
-### 🛡️ Built-in Moderator Queue
-If someone posts doxxing info, harassment, or spam, students can report it with 1 tap. Users with the `isModerator` flag get an incident review panel to inspect reasons and either dismiss reports or instantly hide the post.
+4. **Write-Locked Counters & Score Calculation**:
+   Clients cannot edit post scores, upvotes, downvotes, comment counts, or `isHidden` status directly. Users write only their vote choice to subcollection `posts/{postId}/votes/{uid}`. A Firestore trigger updates post counters atomically via `FieldValue.increment()` and recalculates Hacker-News-style hot decay scores (`score / ((ageHours + 2) ^ 1.8)`).
+
+5. **Private Poll Subcollections**:
+   Voter choices are not stored on public post documents. Votes are cast into private subcollections (`posts/{postId}/pollVotes/{uid}`), where rules prevent users from reading other voters' records. Option tallies are incremented atomically on the server.
+
+6. **Server-Side Alerts**:
+   Direct client writes to `notifications` are blocked in security rules. Cloud Functions automatically generate activity notifications for votes, comments, replies, and reposts. If the triggering action is anonymous, actor identity fields are omitted.
+
+7. **Metadata Sanitization & Storage Staging**:
+   Post photo attachments are processed through `expo-image-manipulator` on the device to strip EXIF GPS coordinates and camera metadata before being uploaded to temporary staging paths.
+
+8. **Verified Campus Email Guard**:
+   All write operations (`createPost`, `createComment`, `vote`, `report`) require an authenticated Firebase token with `email_verified == true`. Anonymous guest sessions are restricted to read-only browsing.
+
+---
+
+## Features
+
+- **Segmented Campus Feeds**: Hot, New, and Top feeds powered by `@shopify/flash-list` for smooth 60fps scrolling.
+- **Campus Mood Board**: Live community vibe ticker and daily mood check-in sheet with streak counter.
+- **Polls & Image Attachments**: Multi-option brutalist progress polls and 1-4 photo grids with fullscreen pinch-to-zoom viewer.
+- **Self-Destructing Posts (TTL)**: Posts with expiration limits (1h, 6h, 12h, 24h, 48h, or Never). Scheduled Cloud Functions purge expired posts and remove attached images from storage.
+- **Nested Discussion Threads**: Full conversation tree with visual branch lines, quick reply indicators, and sticky composer.
+- **Campus Alerts**: Real-time notification feed with type stickers for upvotes, comments, replies, and reposts.
+- **Tag Explorer & Search**: Instant tag filtering and keyword search with trending campus topic chips.
+- **Moderator Queue**: Integrated incident report panel for campus moderators with instant review and post hiding.
 
 ---
 
 ## Project Structure
 
 ```text
-lib/
-├── core/
-│   ├── constants/       # Mood configs, TTL options, campus topics
-│   ├── theme/           # Neo-Brutalist design tokens (shadows, borders, palette)
-│   ├── utils/           # GoRouter & App navigation shell
-│   └── widgets/         # BrutalistCard, BrutalistButton, BrutalistBadge, etc.
-├── features/
-│   ├── auth/            # Sign in, Sign up & live pseudonym generator
-│   ├── feed/            # Hot / New / Top segmented feeds & post cards
-│   ├── mood/            # Campus mood ticker & daily check-in sheet
-│   ├── notifications/   # Unread alerts for votes, comments & reposts
-│   ├── post/            # Post composer & nested comments thread tree
-│   ├── profile/         # Identity switcher, streak stats & moderator queue
-│   └── search/          # Real-time tag explorer & query filter
-└── shared/              # Reusable models, services (Auth, Posts, Pseudonyms)
+anonu-remake/
+├── app/                               # Expo Router file-based navigation
+│   ├── (tabs)/
+│   │   ├── _layout.tsx                # Bottom tab bar with Neo-Brutalist tabs & alert badge
+│   │   ├── index.tsx                  # Feed (Hot / New / Top + MoodBar + FlashList)
+│   │   ├── alerts.tsx                 # Campus Alerts (Notifications list + Mark Read)
+│   │   └── profile.tsx                # Profile (Mask, stats, own posts, mod queue)
+│   ├── _layout.tsx                    # Root layout: QueryClient, Auth listener, Theme
+│   ├── auth.tsx                       # Auth screen (Sign in, Sign up, Guest, Password reset)
+│   ├── compose.tsx                    # Post composer (Anon/Identified, Poll, Images, TTL)
+│   ├── post/
+│   │   └── [id].tsx                   # Post thread with nested comments & quick reply
+│   └── search.tsx                     # Search screen (Tags, keywords, trending topics)
+├── src/
+│   ├── components/                    # Neo-Brutalist UI components
+│   │   ├── BrutalistCard.tsx          # Card with hard zero-blur offset shadow
+│   │   ├── BrutalistButton.tsx        # Tactile press-down translation animation
+│   │   ├── BrutalistBadge.tsx         # Pill badge (#tag, ANON, VERIFIED, EXP)
+│   │   ├── BrutalistTextField.tsx     # High-contrast input field with hard shadow
+│   │   ├── BrutalistDialog.tsx        # Neo-brutalist alert and confirmation modal
+│   │   ├── VoteBar.tsx                # Score counter, up/down arrows, haptic feedback
+│   │   ├── TagChip.tsx                # Campus hashtag chip
+│   │   ├── PollWidget.tsx             # Animated progress bars & voting action
+│   │   ├── ImageGrid.tsx              # Brutalist image grid & fullscreen modal viewer
+│   │   ├── PostCard.tsx               # Full post card with author, tags, content, actions
+│   │   ├── MoodBar.tsx                # Live campus vibes ticker + check-in trigger
+│   │   └── MoodCheckInSheet.tsx       # Bottom sheet for daily mood selection (6 moods)
+│   ├── constants/
+│   │   ├── theme.ts                   # Color tokens (bgCream, popYellow, popMint, popPink, etc.)
+│   │   └── config.ts                  # Constants (maxPostLength 280, moods, TTL options)
+│   ├── hooks/                         # TanStack Query & Mutation hooks
+│   │   ├── useFeed.ts                 # Feed queries & voting mutations
+│   │   ├── usePost.ts                 # Single post, comments, poll voting, repost mutations
+│   │   ├── useMood.ts                 # Campus mood board stream & check-in mutation
+│   │   ├── useNotifications.ts        # Alerts query, unread count badge, mark-as-read
+│   │   └── useSearch.ts               # Search queries
+│   ├── stores/                        # Zustand stores for local UI state
+│   │   ├── useAuthStore.ts            # Local auth state & session flags
+│   │   └── useUIStore.ts              # Active feed tab, unread alert counts
+│   ├── services/                      # Firebase client SDK wrappers
+│   │   ├── firebase.ts                # React Native Firebase initialization & emulator hooks
+│   │   ├── authService.ts             # Auth methods & public profile management
+│   │   ├── postService.ts             # Post querying & Cloud Function invocations
+│   │   └── pseudonymService.ts        # Local pseudonym display & color mapping
+│   └── types/
+│       ├── post.ts                    # PostModel, PollData, PostIdentity, PostType
+│       └── user.ts                    # UserModel, PublicProfile, NotificationModel
+├── functions/                         # Cloud Functions for Firebase (2nd Gen, TypeScript)
+│   ├── src/
+│   │   ├── callable/                  # createPost, createComment, checkInMood, votePoll, etc.
+│   │   ├── triggers/                  # onVoteWrite, onUserCreate
+│   │   ├── scheduled/                 # cleanupExpiredPosts
+│   │   └── utils/                     # pseudonym HMAC, rate limiting
+│   ├── package.json
+│   └── tsconfig.json
+├── scripts/
+│   ├── migrate-author-uids.ts         # Production data migration script (with --dry-run)
+│   └── seed-emulator.ts               # Local emulator mock data seeder
+├── tests/
+│   └── rules/
+│       └── firestore.rules.test.ts    # @firebase/rules-unit-testing test suite
+├── firestore.rules                    # Hardened Firestore security rules
+├── storage.rules                      # Hardened Firebase Storage rules
+├── firestore.indexes.json             # Composite indexes for feeds, search, and alerts
+├── app.json                           # Expo app configuration
+└── package.json
 ```
 
 ---
 
-## Running Locally
+## Getting Started
 
-### 1. Clone & install packages
+### 1. Prerequisites
+- **Node.js**: v20 or v22 LTS
+- **npm** or **yarn**
+- **Firebase CLI**: `npm install -g firebase-tools`
+- **Expo CLI**: `npx expo`
+
+### 2. Install Dependencies
 ```bash
-git clone https://github.com/Amirtheshwaran/anonu-remake.git
-cd anonu-remake
-flutter pub get
+# Install app dependencies
+npm install
+
+# Install Cloud Functions dependencies
+cd functions
+npm install
+npm run build
+cd ..
 ```
 
-### 2. Configure Firebase
-Make sure you have the FlutterFire CLI installed:
+### 3. Local Emulator Workflow
+
+To test security rules and run the app against local emulators:
+
 ```bash
-dart pub global activate flutterfire_cli
-flutterfire configure
-```
-This generates your `lib/firebase_options.dart` connected to your Firebase project.
+# Start Firebase Local Emulators (Auth, Firestore, Functions, Storage, UI)
+npx firebase emulators:start
 
-### 3. Deploy Security Rules
+# Seed test data in emulator (optional)
+npm run seed:emulator
+
+# Run security rules unit tests
+npm run test:rules
+```
+
+### 4. Running Data Migration
+
+To migrate existing production databases where posts or comments contain `authorUid`:
+
 ```bash
-firebase deploy --only firestore:rules,storage
+# Run dry-run (logs all changes without writing to database)
+npm run migrate:dry
+
+# Execute live migration (only when verified)
+npm run migrate:live
 ```
 
-### 4. Launch the App
+### 5. Launch the App
+
 ```bash
-# Run on Chrome
-flutter run -d chrome
+# Start Expo development server
+npx expo start
 
-# Or run on iOS / Android / Desktop
-flutter run
+# Run on Android development build
+npx expo run:android
+
+# Run on iOS development build
+npx expo run:ios
 ```
-
----
-
-## Database Architecture
-
-```text
-/users/{uid}                           # Profile, streaks, permanent pseudonym
-/posts/{postId}                        # Post body, media, poll data, TTL expiry
-/posts/{postId}/votes/{uid}            # Individual vote records (prevents double-voting)
-/posts/{postId}/comments/{commentId}   # Nested comment tree with parentCommentId
-/posts/{postId}/pollVotes/{uid}        # Single-vote poll verification
-/moodBoard/{entryId}                   # Anonymous daily mood check-ins
-/notifications/{notifId}               # In-app activity alerts
-/reports/{reportId}                    # Moderator queue incident reports
-```
-
-Security rules strictly enforce that:
-1. Public users cannot read the private voter subcollection or expose who upvoted what.
-2. Only designated moderators can access the reports collection and toggle `isHidden` on reported posts.
-3. Mood board entries store only the mood emoji and timestamp, with no readable user ID attached.
 
 ---
 
 ## License
 
-MIT License. Feel free to fork, tweak, and run this for your own university campus.
+MIT License. Built for university campus communities.

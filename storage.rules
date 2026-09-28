@@ -1,16 +1,40 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+
     function isSignedIn() {
       return request.auth != null;
     }
 
-    match /posts/{uid}/{fileName} {
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Temporary staging upload path for EXIF-sanitized post attachments
+    match /uploads/{uid}/{fileName} {
+      allow read: if isOwner(uid);
+      allow write: if isEmailVerified() && isOwner(uid)
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+      allow delete: if isOwner(uid);
+    }
+
+    // Processed post images: readable by signed-in campus members, write-locked to server
+    match /postImages/{postId}/{fileName} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn()
-        && request.auth.uid == uid
-        && request.resource.size < 10 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+      allow write: if false;
+    }
+
+    // Identified profile avatars
+    match /avatars/{uid}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isEmailVerified() && isOwner(uid)
+        && request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
     }
   }
 }
