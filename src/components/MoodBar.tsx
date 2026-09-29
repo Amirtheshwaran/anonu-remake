@@ -9,6 +9,7 @@ import {
 import { AnonUTheme } from '../constants/theme';
 import { AnonUConstants } from '../constants/config';
 import { MoodCheckInSheet } from './MoodCheckInSheet';
+import { hapticFeedback } from '../utils/haptics';
 
 interface MoodBarProps {
   moodCounts: Record<string, number>;
@@ -33,6 +34,7 @@ export const MoodBar: React.FC<MoodBarProps> = ({
 
   const handleSelectMood = async (mood: string) => {
     setSheetVisible(false);
+    hapticFeedback.medium();
     await onCheckIn(mood);
   };
 
@@ -74,6 +76,10 @@ export const MoodBar: React.FC<MoodBarProps> = ({
 
           {/* Check-In Button */}
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Check in daily campus mood. Current streak: ${currentStreak} days`}
+            accessibilityHint="Opens mood selector to record your daily vibe"
+            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
             onPress={() => setSheetVisible(true)}
             style={styles.checkInButton}
           >

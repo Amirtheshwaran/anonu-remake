@@ -32,6 +32,8 @@ export const BrutalistTextField: React.FC<BrutalistTextFieldProps> = ({
         <TextInput
           placeholderTextColor={AnonUTheme.textMuted}
           style={[styles.input, style]}
+          accessible={true}
+          accessibilityLabel={textInputProps.accessibilityLabel || textInputProps.placeholder}
           {...textInputProps}
         />
         {suffixIcon ? <View style={styles.suffix}>{suffixIcon}</View> : null}

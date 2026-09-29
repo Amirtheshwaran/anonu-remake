@@ -62,7 +62,16 @@ export const BrutalistBadge: React.FC<BrutalistBadgeProps> = ({
   );
 
   if (onPress) {
-    return <Pressable onPress={onPress}>{content}</Pressable>;
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        onPress={onPress}
+      >
+        {content}
+      </Pressable>
+    );
   }
 
   return content;
