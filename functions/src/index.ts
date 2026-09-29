@@ -15,3 +15,6 @@ export { setModeratorClaim } from './callable/setModeratorClaim';
 export { onVoteWrite } from './triggers/onVoteWrite';
 export { onUserCreate } from './triggers/onUserCreate';
 export { cleanupExpiredPosts } from './scheduled/cleanupExpiredPosts';
+export { recomputeActiveHotScores } from './scheduled/recomputeActiveHotScores';
+export { recomputeHotScores } from './callable/recomputeHotScores';
+

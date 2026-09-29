@@ -1,6 +1,7 @@
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
 import { AUTO_HIDE_THRESHOLD } from '../constants';
+import { calculateHotScore } from '../utils/decay';
 
 export const onVoteWrite = onDocumentWritten('posts/{postId}/votes/{userId}', async (event) => {
   const { postId, userId } = event.params;
@@ -38,10 +39,9 @@ export const onVoteWrite = onDocumentWritten('posts/{postId}/votes/{userId}', as
     const currentDownvotes = (data.downvotes || 0) + downvoteDelta;
     const newScore = currentUpvotes - currentDownvotes;
 
-    // Hot score calculation: score / ((ageHours + 2) * 1.8)
+    // Hot score calculation with gravity decay
     const createdAt = data.createdAt ? data.createdAt.toDate() : new Date();
-    const ageHours = Math.max(0, (Date.now() - createdAt.getTime()) / (1000 * 3600));
-    const hotScore = Number((newScore / ((ageHours + 2) * 1.8)).toFixed(4));
+    const hotScore = calculateHotScore(newScore, createdAt);
 
     const isHidden = data.isHidden || newScore <= AUTO_HIDE_THRESHOLD;
 

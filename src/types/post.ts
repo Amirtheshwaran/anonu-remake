@@ -2,6 +2,12 @@ export type PostIdentity = 'anonymous' | 'identified';
 export type PostType = 'text' | 'poll' | 'image';
 export type FeedSort = 'hot' | 'recent' | 'top';
 
+export interface PaginatedFeedResult {
+  posts: PostModel[];
+  lastDoc: any | null;
+  hasMore: boolean;
+}
+
 export interface PollData {
   options: string[];
   votes: Record<string, number>; // optionIndex -> count

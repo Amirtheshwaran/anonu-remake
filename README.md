@@ -89,6 +89,21 @@ CLIENT                          CLOUD FUNCTIONS (2nd Gen)              FIRESTORE
    - **Appeals Workflow**: Students can submit strike appeals, reviewed directly in the moderator console.
    - **Audit Logging**: Every action (`hide`, `restore`, `dismiss`, `strike`) is immutably recorded in `/moderatorAuditLog`.
 
+12. **Server-Side HotScore Gravity Decay**:
+   To prevent viral posts from permanently monopolizing the campus Hot feed, AnonU implements Hacker News gravity decay:
+   $$\text{hotScore} = \frac{\text{upvotes} - \text{downvotes}}{(\text{ageHours} + 2)^{1.5}}$$
+   - Recalculated atomically on every vote within the `onVoteWrite` Firestore trigger.
+   - Background Cloud Scheduler job `recomputeActiveHotScores` runs every 15 minutes to decay active posts published within the last 48 hours, allowing fresh campus conversations to naturally surface over older posts.
+
+13. **Infinite Cursor Pagination & Optimistic Voting**:
+   - `useInfiniteFeed` provides cursor-based pagination in batches of 20 posts (`startAfter(lastDoc)`) with `@shopify/flash-list` 60fps virtualization.
+   - Tactile zero-latency voting immediately updates scores and active vote states in cache with `expo-haptics` physical feedback, backed by automatic rollback on network failure.
+   - Animated Neo-Brutalist skeleton cards replace loading spinners during feed fetches.
+
+14. **Offline Resilience & Outbox Queue**:
+   - Firestore offline persistence is enabled to cache feeds and profile data during intermittent campus Wi-Fi coverage.
+   - `useOutboxStore` automatically catches offline failures in the post composer, staging drafts in a persistent outbox with 1-tap manual sync and automatic delivery on reconnect.
+
 ---
 
 ## Features

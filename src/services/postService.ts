@@ -1,5 +1,5 @@
 import { firestore, functions } from './firebase';
-import { PostModel, CommentModel, FeedSort, PostIdentity, PostType } from '../types/post';
+import { PostModel, CommentModel, FeedSort, PostIdentity, PostType, PaginatedFeedResult } from '../types/post';
 
 function parsePostDoc(doc: any): PostModel {
   const data = doc.data() || {};
@@ -56,6 +56,49 @@ function parseCommentDoc(doc: any): CommentModel {
 }
 
 export const postService = {
+  async getFeedPaginated(
+    sort: FeedSort = 'hot',
+    limit = 20,
+    campusId?: string,
+    lastDoc?: any | null
+  ): Promise<PaginatedFeedResult> {
+    let query = firestore().collection('posts').where('isHidden', '==', false);
+
+    if (campusId) {
+      query = query.where('campusId', '==', campusId);
+    }
+
+    switch (sort) {
+      case 'hot':
+        query = query.orderBy('hotScore', 'desc');
+        break;
+      case 'recent':
+        query = query.orderBy('createdAt', 'desc');
+        break;
+      case 'top':
+        query = query.orderBy('score', 'desc');
+        break;
+    }
+
+    if (lastDoc) {
+      query = query.startAfter(lastDoc);
+    }
+
+    const snap = await query.limit(limit).get();
+    const now = Date.now();
+    const lastVisible = snap.docs.length > 0 ? snap.docs[snap.docs.length - 1] : null;
+
+    const posts = snap.docs
+      .map(parsePostDoc)
+      .filter((p) => !p.expiresAt || new Date(p.expiresAt).getTime() > now);
+
+    return {
+      posts,
+      lastDoc: lastVisible,
+      hasMore: snap.docs.length >= limit,
+    };
+  },
+
   async getFeed(sort: FeedSort = 'hot', limit = 25, campusId?: string): Promise<PostModel[]> {
     let query = firestore().collection('posts').where('isHidden', '==', false);
 

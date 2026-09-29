@@ -17,6 +17,7 @@ import { Image } from 'expo-image';
 import { storage } from '../src/services/firebase';
 import { postService } from '../src/services/postService';
 import { useAuthStore } from '../src/stores/useAuthStore';
+import { useOutboxStore } from '../src/stores/useOutboxStore';
 import { AnonUTheme } from '../src/constants/theme';
 import { AnonUConstants } from '../src/constants/config';
 import { DEFAULT_CAMPUSES } from '../src/constants/campuses';
@@ -137,7 +138,35 @@ export default function ComposeScreen() {
       router.back();
     } catch (err: any) {
       console.error('Publish post failed:', err);
-      Alert.alert('Publish Error', err.message || 'Failed to publish post.');
+      const isNetworkError =
+        err?.code === 'unavailable' ||
+        err?.code === 'network-request-failed' ||
+        err?.message?.includes('network') ||
+        err?.message?.includes('offline') ||
+        err?.message?.includes('unavailable');
+
+      if (isNetworkError) {
+        useOutboxStore.getState().enqueue({
+          content: content.trim(),
+          identity,
+          type: type === 'poll' ? 'poll' : images.length > 0 ? 'image' : 'text',
+          tags: selectedTags,
+          imageUrls: [],
+          poll:
+            type === 'poll'
+              ? { options: pollOptions.filter(Boolean), durationHours: 24 }
+              : undefined,
+          timeLimitHours,
+        });
+
+        Alert.alert(
+          'Saved to Outbox',
+          'You appear to be offline. Your publication has been saved to your outbox and will automatically publish once campus network connectivity is restored.',
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
+      } else {
+        Alert.alert('Publish Error', err.message || 'Failed to publish post.');
+      }
     } finally {
       setLoading(false);
     }
