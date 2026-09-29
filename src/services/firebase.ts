@@ -20,4 +20,14 @@ if (USE_EMULATOR && __DEV__) {
   }
 }
 
+// Enable Firestore offline persistence
+try {
+  firestore().settings({
+    persistence: true,
+    cacheSizeBytes: firestore.CACHE_SIZE_UNLIMITED,
+  });
+} catch (err) {
+  // Settings can only be applied once before any Firestore calls
+}
+
 export { auth, firestore, functions, storage };

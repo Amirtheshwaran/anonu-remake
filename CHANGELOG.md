@@ -2,6 +2,32 @@
 
 All notable changes to AnonU will be documented in this file.
 
+## [Phase 3: Feed Quality, Hot Decay and Performance] - 2026-09-28
+
+### Added
+- **Server-Side HotScore Gravity Decay**:
+  - `functions/src/utils/decay.ts`: Hacker News gravity decay formula `hotScore = score / ((ageHours + 2) ^ 1.5)`.
+  - `functions/src/triggers/onVoteWrite.ts`: Automated hotScore recalculation on every vote transaction.
+  - `functions/src/scheduled/recomputeActiveHotScores.ts`: Scheduled Cloud Function running every 15 minutes to decay active posts published in the last 48 hours.
+  - `functions/src/callable/recomputeHotScores.ts`: Callable endpoint for on-demand test runs.
+- **Cursor-Based Infinite Feed & FlashList Virtualization**:
+  - `postService.getFeedPaginated`: Cursor-based query with `startAfter(lastDoc)` in batches of 20.
+  - `useInfiniteFeed`: TanStack Query `useInfiniteQuery` hook handling pagination, deduplication, and blocked author exclusions.
+  - FlashList `onEndReached` with threshold `0.5`, loading indicators, and Neo-Brutalist `"ALL CAUGHT UP"` end-of-feed stamp.
+- **Neo-Brutalist Skeleton Placeholders**:
+  - `src/components/BrutalistSkeleton.tsx`: Custom pulsed loading skeletons featuring hard offset shadows, avatar circles, and placeholder text bars, replacing blank spinners.
+- **Zero-Latency Optimistic Voting with Rollback**:
+  - Updated `useVoteMutation` in `src/hooks/useFeed.ts` with instant in-memory cache updates across both single-post views and infinite feeds.
+  - Tactile haptic feedback on vote triggers (`Haptics.impactAsync`).
+  - Automatic rollback on network failures with error haptic notification.
+- **Offline Outbox Queue & Persistence**:
+  - Enabled Firestore offline cache persistence in `src/services/firebase.ts`.
+  - Created `src/stores/useOutboxStore.ts` managing offline publication queue with status tracking and retry capability.
+  - Updated `app/compose.tsx` to automatically save drafts to outbox on network failure.
+  - Added pending outbox sync banner on the feed top bar with 1-tap manual sync and automatic sync on reconnect.
+- **Unit Test Suite**:
+  - `tests/unit/feedQuality.test.ts`: 8 unit tests validating initial hot scores, time-based score decay, fresh post resurfacing over old high-vote posts, non-NaN negative score handling, gravity variance, and outbox lifecycle. Total 25/25 tests passing.
+
 ## [Phase 2: Safety, UGC Compliance and Moderation] - 2026-09-28
 
 ### Added

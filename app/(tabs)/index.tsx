@@ -13,10 +13,11 @@ import { useRouter } from 'expo-router';
 import { AnonUTheme } from '../../src/constants/theme';
 import { DEFAULT_CAMPUSES } from '../../src/constants/campuses';
 import { FeedSort, PostModel } from '../../src/types/post';
-import { useFeed, useVoteMutation, useUserVote } from '../../src/hooks/useFeed';
+import { useInfiniteFeed, useVoteMutation, useUserVote } from '../../src/hooks/useFeed';
 import { useBlockedPosts } from '../../src/hooks/useBlockedPosts';
 import { useMoodBoard, useCheckInMood } from '../../src/hooks/useMood';
 import { useRepostMutation, useVotePoll } from '../../src/hooks/usePost';
+import { useOutboxStore } from '../../src/stores/useOutboxStore';
 import { postService } from '../../src/services/postService';
 import { useAuthStore } from '../../src/stores/useAuthStore';
 import { PostCard } from '../../src/components/PostCard';
@@ -24,6 +25,7 @@ import { MoodBar } from '../../src/components/MoodBar';
 import { BrutalistButton } from '../../src/components/BrutalistButton';
 import { BrutalistCard } from '../../src/components/BrutalistCard';
 import { BrutalistDialog } from '../../src/components/BrutalistDialog';
+import { FeedSkeletonList } from '../../src/components/BrutalistSkeleton';
 import { BrutalistBottomBar } from './_layout';
 
 export default function FeedScreen() {
@@ -35,14 +37,39 @@ export default function FeedScreen() {
   const [selectedSort, setSelectedSort] = useState<FeedSort>('hot');
 
   const { blockedPostIds, blockAuthor } = useBlockedPosts();
-  const { data: posts, isLoading, isRefetching, refetch } = useFeed(
-    selectedSort,
-    selectedCampusId,
-    blockedPostIds
-  );
+  const outboxQueue = useOutboxStore((s) => s.queue);
+  const processOutbox = useOutboxStore((s) => s.processQueue);
+
+  const {
+    data: infiniteData,
+    isLoading,
+    isRefetching,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteFeed(selectedSort, selectedCampusId, blockedPostIds);
+
+  const posts = infiniteData?.pages.flatMap((page) => page.posts) || [];
   const { counts: moodCounts } = useMoodBoard(selectedCampusId);
   const checkInMutation = useCheckInMood();
   const repostMutation = useRepostMutation();
+
+  const handleSyncOutbox = async () => {
+    if (outboxQueue.length === 0) return;
+    await processOutbox(async (item) => {
+      await postService.createPost({
+        content: item.content,
+        identity: item.identity,
+        type: item.type,
+        tags: item.tags,
+        imageUrls: item.imageUrls,
+        poll: item.poll,
+        timeLimitHours: item.timeLimitHours,
+      });
+      refetch();
+    });
+  };
 
   // Modals state
   const [repostTarget, setRepostTarget] = useState<PostModel | null>(null);
@@ -174,12 +201,29 @@ export default function FeedScreen() {
         </View>
       </View>
 
+      {/* Outbox Pending Banner */}
+      {outboxQueue.length > 0 && (
+        <Pressable onPress={handleSyncOutbox} style={styles.outboxBanner}>
+          <View style={styles.outboxShadow} />
+          <View style={styles.outboxCard}>
+            <Text style={styles.outboxEmoji}>📤</Text>
+            <View style={styles.outboxTextCol}>
+              <Text style={styles.outboxTitle}>
+                {`${outboxQueue.length} PUBLICATION${outboxQueue.length > 1 ? 'S' : ''} IN OUTBOX`}
+              </Text>
+              <Text style={styles.outboxSub}>
+                Saved offline. Tap to sync with campus network now.
+              </Text>
+            </View>
+            <Text style={styles.syncBtnText}>SYNC ↻</Text>
+          </View>
+        </Pressable>
+      )}
+
       {/* Main Posts List */}
       <View style={styles.listContainer}>
         {isLoading ? (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={AnonUTheme.black} />
-          </View>
+          <FeedSkeletonList count={3} />
         ) : !posts || posts.length === 0 ? (
           <View style={styles.emptyContainer}>
             <BrutalistCard padding={24} style={styles.emptyCard}>
@@ -205,6 +249,33 @@ export default function FeedScreen() {
             estimatedItemSize={240}
             refreshing={isRefetching}
             onRefresh={refetch}
+            onEndReached={() => {
+              if (hasNextPage && !isFetchingNextPage) {
+                fetchNextPage();
+              }
+            }}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={() => {
+              if (isFetchingNextPage) {
+                return (
+                  <View style={styles.footerLoader}>
+                    <ActivityIndicator size="small" color={AnonUTheme.black} />
+                    <Text style={styles.footerLoaderText}>FETCHING MORE CAMPUS POSTS...</Text>
+                  </View>
+                );
+              }
+              if (!hasNextPage && posts.length > 0) {
+                return (
+                  <View style={styles.endOfFeedContainer}>
+                    <View style={styles.endBadge}>
+                      <Text style={styles.endBadgeText}>⚡ ALL CAUGHT UP</Text>
+                    </View>
+                    <Text style={styles.endSubText}>Checked all active publications on your campus.</Text>
+                  </View>
+                );
+              }
+              return null;
+            }}
             contentContainerStyle={styles.listContent}
             renderItem={({ item }) => (
               <PostItemRow
@@ -748,5 +819,98 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     gap: 10,
     marginTop: 14,
+  },
+  outboxBanner: {
+    position: 'relative',
+    marginHorizontal: 16,
+    marginBottom: 10,
+  },
+  outboxShadow: {
+    position: 'absolute',
+    top: 3,
+    left: 3,
+    right: 0,
+    bottom: 0,
+    backgroundColor: AnonUTheme.black,
+    borderRadius: AnonUTheme.radiusSm,
+    width: '100%',
+    height: '100%',
+  },
+  outboxCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: AnonUTheme.popYellow,
+    borderColor: AnonUTheme.black,
+    borderWidth: AnonUTheme.borderWidthThin,
+    borderRadius: AnonUTheme.radiusSm,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  outboxEmoji: {
+    fontSize: 20,
+    marginRight: 10,
+  },
+  outboxTextCol: {
+    flex: 1,
+  },
+  outboxTitle: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: AnonUTheme.black,
+    letterSpacing: 0.4,
+  },
+  outboxSub: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: AnonUTheme.textSecondary,
+    marginTop: 1,
+  },
+  syncBtnText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: AnonUTheme.black,
+    backgroundColor: AnonUTheme.white,
+    borderColor: AnonUTheme.black,
+    borderWidth: 1.5,
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginLeft: 6,
+  },
+  footerLoader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    gap: 8,
+  },
+  footerLoaderText: {
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    color: AnonUTheme.black,
+  },
+  endOfFeedContainer: {
+    alignItems: 'center',
+    paddingVertical: 26,
+    paddingHorizontal: 20,
+  },
+  endBadge: {
+    backgroundColor: AnonUTheme.black,
+    borderRadius: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginBottom: 6,
+  },
+  endBadgeText: {
+    color: AnonUTheme.popMint,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+  },
+  endSubText: {
+    color: AnonUTheme.textSecondary,
+    fontSize: 11.5,
+    fontWeight: '600',
   },
 });
