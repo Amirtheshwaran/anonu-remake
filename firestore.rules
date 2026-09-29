@@ -15,7 +15,7 @@ service cloud.firestore {
     }
 
     function isModerator() {
-      return isSignedIn() && (request.auth.token.moderator == true || request.auth.token.isModerator == true);
+      return isSignedIn() && (request.auth.token.isModerator == true || request.auth.token.moderator == true);
     }
 
     // Public Posts (Clients cannot create/update directly; writes via Cloud Functions)
@@ -58,6 +58,21 @@ service cloud.firestore {
     // Split Profiles: Private User Account Data (owner only)
     match /users/{userId} {
       allow read, write: if isOwner(userId);
+
+      // Blocked authors and posts subcollections
+      match /blockedAuthors/{targetId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /blockedPosts/{postId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Strikes: read-only for user, issued by server
+      match /strikes/{strikeId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
     }
 
     // Split Profiles: Public Profile Data (public read, owner write only for display info)
@@ -82,6 +97,20 @@ service cloud.firestore {
     match /reports/{reportId} {
       allow create: if isEmailVerified();
       allow read, update, delete: if isModerator();
+    }
+
+    // Moderator Audit Log (Read-only for moderators; written by Cloud Functions)
+    match /moderatorAuditLog/{logId} {
+      allow read: if isModerator();
+      allow write: if false;
+    }
+
+    // User Appeals (Created by user; inspected/updated by moderators)
+    match /appeals/{appealId} {
+      allow create: if isEmailVerified() && request.resource.data.uid == request.auth.uid;
+      allow read: if isModerator() || (isSignedIn() && resource.data.uid == request.auth.uid);
+      allow update: if isModerator();
+      allow delete: if false;
     }
 
     // Daily Mood aggregates & live board (Public read for campus pulse; written by Functions)

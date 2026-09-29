@@ -4,6 +4,7 @@ import { MAX_POST_LENGTH, MAX_TAGS, MAX_IMAGES, MAX_POLL_OPTIONS } from '../cons
 import { generatePostPseudonym } from '../utils/pseudonym';
 import { checkRateLimit } from '../utils/rateLimit';
 import { getCampusByEmail } from '../utils/campus';
+import { screenContent } from '../utils/moderation';
 
 interface CreatePostData {
   content: string;
@@ -48,10 +49,34 @@ export const createPost = onCall(async (request) => {
   const userDoc = await db.collection('users').doc(uid).get();
   const userData = userDoc.data() || {};
 
+  // Check strike penalties: Ban or Timeout
+  if (userData.isBanned) {
+    throw new HttpsError(
+      'permission-denied',
+      'Your account has been permanently suspended for repeated policy violations.'
+    );
+  }
+
+  if (userData.timeoutUntil) {
+    const timeoutDate = userData.timeoutUntil.toDate
+      ? userData.timeoutUntil.toDate()
+      : new Date(userData.timeoutUntil);
+    if (timeoutDate > new Date()) {
+      throw new HttpsError(
+        'permission-denied',
+        `Your posting privileges are suspended until ${timeoutDate.toLocaleString()} due to active strikes.`
+      );
+    }
+  }
+
   // Verify onboarding and rules acceptance
   if (!userData.rulesAcceptedAt && !isEmulated) {
     throw new HttpsError('failed-precondition', 'Community rules must be accepted before posting.');
   }
+
+  // Run automated screening (PII regex, crisis signals, toxicity)
+  const screening = screenContent(content);
+  const isHidden = screening.action === 'auto_hide';
 
   // Derive or extract campusId
   let campusId = userData.campusId;
@@ -153,8 +178,10 @@ export const createPost = onCall(async (request) => {
       repostCount: 0,
       createdAt: now,
       expiresAt,
-      isHidden: false,
+      isHidden,
       isRepost: false,
+      moderationSeverity: screening.severity,
+      moderationReason: screening.flagReason || null,
     });
 
     // 3. Increment author's post count in private user document
@@ -169,5 +196,32 @@ export const createPost = onCall(async (request) => {
     );
   });
 
-  return { postId, pseudonym, campusId };
+  // 4. If flagged or crisis, enqueue report for moderators
+  if (screening.action !== 'publish' || screening.isCrisis) {
+    await db.collection('reports').add({
+      postId,
+      campusId,
+      reason: screening.flagReason || (screening.isCrisis ? 'Crisis Signal' : 'Automated Policy Match'),
+      severity: screening.severity,
+      status: 'pending',
+      screeningScores: screening.toxicityScores,
+      createdAt: now,
+    });
+  }
+
+  return {
+    postId,
+    pseudonym,
+    campusId,
+    isHidden,
+    isCrisis: screening.isCrisis,
+    supportResources: screening.isCrisis
+      ? {
+          lifeline: '988 (Call or Text)',
+          crisisTextLine: 'Text HOME to 741741',
+          onlineChat: '988lifeline.org/chat',
+          campusHealth: 'Student Health & Psychological Counseling Center',
+        }
+      : null,
+  };
 });

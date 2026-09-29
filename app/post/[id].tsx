@@ -10,18 +10,21 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AnonUTheme } from '../../src/constants/theme';
 import { CommentModel, PostIdentity } from '../../src/types/post';
 import { usePost, useComments, useCreateComment, useVotePoll, useRepostMutation } from '../../src/hooks/usePost';
 import { useVoteMutation, useUserVote } from '../../src/hooks/useFeed';
+import { useBlockedPosts } from '../../src/hooks/useBlockedPosts';
 import { useAuthStore } from '../../src/stores/useAuthStore';
 import { postService } from '../../src/services/postService';
 import { PseudonymService } from '../../src/services/pseudonymService';
 import { PostCard } from '../../src/components/PostCard';
 import { BrutalistCard } from '../../src/components/BrutalistCard';
 import { BrutalistBadge } from '../../src/components/BrutalistBadge';
+import { BrutalistButton } from '../../src/components/BrutalistButton';
 import { BrutalistDialog } from '../../src/components/BrutalistDialog';
 
 export default function PostThreadScreen() {
@@ -29,6 +32,7 @@ export default function PostThreadScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
 
+  const { blockAuthor } = useBlockedPosts();
   const { data: post, isLoading: postLoading } = usePost(id);
   const { data: comments, isLoading: commentsLoading } = useComments(id);
   const { data: userVote } = useUserVote(id, user?.uid);
@@ -41,6 +45,72 @@ export default function PostThreadScreen() {
   const [commentIdentity, setCommentIdentity] = useState<PostIdentity>('anonymous');
   const [replyingTo, setReplyingTo] = useState<CommentModel | null>(null);
   const [repostConfirmVisible, setRepostConfirmVisible] = useState(false);
+
+  // Post moderation options
+  const [postOptionsVisible, setPostOptionsVisible] = useState(false);
+  const [postBlockConfirmVisible, setPostBlockConfirmVisible] = useState(false);
+  const [postReportVisible, setPostReportVisible] = useState(false);
+  const [reportReason, setReportReason] = useState('Harassment or Hate');
+
+  // Comment moderation options
+  const [commentOptionsTarget, setCommentOptionsTarget] = useState<CommentModel | null>(null);
+  const [commentBlockConfirmVisible, setCommentBlockConfirmVisible] = useState(false);
+  const [commentReportTargetId, setCommentReportTargetId] = useState<string | null>(null);
+  const [commentReportReason, setCommentReportReason] = useState('Harassment or Hate');
+
+  const reportReasons = [
+    'Harassment or Hate',
+    'Misinformation',
+    'Doxxing / Personal Info',
+    'Spam or Scam',
+    'Inappropriate Content',
+  ];
+
+  const handleConfirmPostBlock = async () => {
+    if (!post) return;
+    try {
+      await blockAuthor({ postId: post.id });
+      setPostBlockConfirmVisible(false);
+      router.back();
+    } catch (err) {
+      console.error('Block post error:', err);
+      setPostBlockConfirmVisible(false);
+    }
+  };
+
+  const handleConfirmPostReport = async () => {
+    if (!post) return;
+    try {
+      await postService.reportPost(post.id, reportReason);
+    } catch (err) {
+      console.error('Report post error:', err);
+    } finally {
+      setPostReportVisible(false);
+    }
+  };
+
+  const handleConfirmCommentBlock = async () => {
+    if (!commentOptionsTarget) return;
+    try {
+      await blockAuthor({ commentId: commentOptionsTarget.id });
+    } catch (err) {
+      console.error('Block comment error:', err);
+    } finally {
+      setCommentBlockConfirmVisible(false);
+      setCommentOptionsTarget(null);
+    }
+  };
+
+  const handleConfirmCommentReport = async () => {
+    if (!commentReportTargetId) return;
+    try {
+      await postService.reportComment(commentReportTargetId, commentReportReason);
+    } catch (err) {
+      console.error('Report comment error:', err);
+    } finally {
+      setCommentReportTargetId(null);
+    }
+  };
 
   const handleSendComment = async () => {
     const text = commentText.trim();
@@ -118,7 +188,8 @@ export default function PostThreadScreen() {
             onDownvote={() => voteMutation.mutate(false)}
             onComment={() => {}}
             onRepost={() => setRepostConfirmVisible(true)}
-            onReport={() => postService.reportPost(post.id, 'Reported from thread')}
+            onReport={() => setPostOptionsVisible(true)}
+            onOptions={() => setPostOptionsVisible(true)}
             onPollVote={(idx) => pollVoteMutation.mutate(idx)}
           />
 
@@ -149,6 +220,7 @@ export default function PostThreadScreen() {
                   <CommentCard
                     comment={root}
                     onReply={() => setReplyingTo(root)}
+                    onOptions={() => setCommentOptionsTarget(root)}
                   />
 
                   {/* Indented replies */}
@@ -162,6 +234,7 @@ export default function PostThreadScreen() {
                             comment={reply}
                             isReply={true}
                             onReply={() => setReplyingTo(root)}
+                            onOptions={() => setCommentOptionsTarget(reply)}
                           />
                         ))}
                       </View>
@@ -253,6 +326,263 @@ export default function PostThreadScreen() {
           onConfirm={handleConfirmRepost}
           onCancel={() => setRepostConfirmVisible(false)}
         />
+
+        {/* Post Options Action Sheet */}
+        <Modal
+          visible={postOptionsVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPostOptionsVisible(false)}
+        >
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={() => setPostOptionsVisible(false)}
+          >
+            <View style={styles.actionSheetContainer}>
+              <View style={styles.actionSheetShadow} />
+              <View style={styles.actionSheet}>
+                <View style={styles.actionSheetHeader}>
+                  <Text style={styles.actionSheetTitle}>PUBLICATION OPTIONS</Text>
+                  <Pressable onPress={() => setPostOptionsVisible(false)}>
+                    <Text style={styles.closeIcon}>✕</Text>
+                  </Pressable>
+                </View>
+
+                <Pressable
+                  style={styles.actionSheetRow}
+                  onPress={() => {
+                    setPostOptionsVisible(false);
+                    setPostReportVisible(true);
+                  }}
+                >
+                  <Text style={styles.actionSheetEmoji}>🚩</Text>
+                  <View style={styles.actionSheetTextCol}>
+                    <Text style={styles.actionSheetItemTitle}>REPORT PUBLICATION</Text>
+                    <Text style={styles.actionSheetItemSub}>Flag for community guideline violations</Text>
+                  </View>
+                </Pressable>
+
+                <View style={styles.actionSheetDivider} />
+
+                <Pressable
+                  style={styles.actionSheetRow}
+                  onPress={() => {
+                    setPostOptionsVisible(false);
+                    setPostBlockConfirmVisible(true);
+                  }}
+                >
+                  <Text style={styles.actionSheetEmoji}>🚫</Text>
+                  <View style={styles.actionSheetTextCol}>
+                    <Text style={[styles.actionSheetItemTitle, { color: AnonUTheme.downvoteRed }]}>
+                      BLOCK ANONYMOUS USER
+                    </Text>
+                    <Text style={styles.actionSheetItemSub}>
+                      Hide all publications and replies from this author
+                    </Text>
+                  </View>
+                </Pressable>
+              </View>
+            </View>
+          </Pressable>
+        </Modal>
+
+        {/* Post Block Confirm Dialog */}
+        <BrutalistDialog
+          visible={postBlockConfirmVisible}
+          title="BLOCK THIS USER?"
+          message="All current and future publications and replies from this author will be hidden from your feed and campus discussions. This action is zero-knowledge: the author will not be notified."
+          confirmLabel="BLOCK USER"
+          confirmColor={AnonUTheme.downvoteRed}
+          onConfirm={handleConfirmPostBlock}
+          onCancel={() => setPostBlockConfirmVisible(false)}
+        />
+
+        {/* Post Report Modal */}
+        <Modal
+          visible={postReportVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPostReportVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.reportModalContainer}>
+              <View style={styles.actionSheetShadow} />
+              <View style={styles.reportCard}>
+                <View style={styles.actionSheetHeader}>
+                  <Text style={styles.actionSheetTitle}>REPORT PUBLICATION</Text>
+                  <Pressable onPress={() => setPostReportVisible(false)}>
+                    <Text style={styles.closeIcon}>✕</Text>
+                  </Pressable>
+                </View>
+                <Text style={styles.reportSub}>Select violation reason for campus moderator review:</Text>
+
+                {reportReasons.map((reason) => {
+                  const isSelected = reportReason === reason;
+                  return (
+                    <Pressable
+                      key={reason}
+                      onPress={() => setReportReason(reason)}
+                      style={[
+                        styles.reasonOption,
+                        isSelected && styles.reasonOptionSelected,
+                      ]}
+                    >
+                      <Text style={styles.reasonRadio}>{isSelected ? '●' : '○'}</Text>
+                      <Text style={[styles.reasonText, isSelected && styles.reasonTextSelected]}>
+                        {reason}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+
+                <View style={styles.reportActions}>
+                  <BrutalistButton
+                    text="CANCEL"
+                    backgroundColor="#ECECEC"
+                    shadowOffset={{ width: 2, height: 2 }}
+                    onPress={() => setPostReportVisible(false)}
+                  />
+                  <BrutalistButton
+                    text="SUBMIT REPORT"
+                    backgroundColor={AnonUTheme.downvoteRed}
+                    shadowOffset={{ width: 2, height: 2 }}
+                    onPress={handleConfirmPostReport}
+                  />
+                </View>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Comment Options Action Sheet */}
+        <Modal
+          visible={commentOptionsTarget !== null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setCommentOptionsTarget(null)}
+        >
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={() => setCommentOptionsTarget(null)}
+          >
+            <View style={styles.actionSheetContainer}>
+              <View style={styles.actionSheetShadow} />
+              <View style={styles.actionSheet}>
+                <View style={styles.actionSheetHeader}>
+                  <Text style={styles.actionSheetTitle}>COMMENT OPTIONS</Text>
+                  <Pressable onPress={() => setCommentOptionsTarget(null)}>
+                    <Text style={styles.closeIcon}>✕</Text>
+                  </Pressable>
+                </View>
+
+                <Pressable
+                  style={styles.actionSheetRow}
+                  onPress={() => {
+                    const cid = commentOptionsTarget?.id || null;
+                    setCommentOptionsTarget(null);
+                    setCommentReportTargetId(cid);
+                  }}
+                >
+                  <Text style={styles.actionSheetEmoji}>🚩</Text>
+                  <View style={styles.actionSheetTextCol}>
+                    <Text style={styles.actionSheetItemTitle}>REPORT COMMENT</Text>
+                    <Text style={styles.actionSheetItemSub}>Flag reply for community review</Text>
+                  </View>
+                </Pressable>
+
+                <View style={styles.actionSheetDivider} />
+
+                <Pressable
+                  style={styles.actionSheetRow}
+                  onPress={() => {
+                    setCommentBlockConfirmVisible(true);
+                  }}
+                >
+                  <Text style={styles.actionSheetEmoji}>🚫</Text>
+                  <View style={styles.actionSheetTextCol}>
+                    <Text style={[styles.actionSheetItemTitle, { color: AnonUTheme.downvoteRed }]}>
+                      BLOCK COMMENT AUTHOR
+                    </Text>
+                    <Text style={styles.actionSheetItemSub}>
+                      Hide all publications and replies from this author
+                    </Text>
+                  </View>
+                </Pressable>
+              </View>
+            </View>
+          </Pressable>
+        </Modal>
+
+        {/* Comment Block Confirm Dialog */}
+        <BrutalistDialog
+          visible={commentBlockConfirmVisible}
+          title="BLOCK THIS USER?"
+          message="All current and future publications and replies from this author will be hidden from your feed and campus discussions. This action is zero-knowledge: the author will not be notified."
+          confirmLabel="BLOCK USER"
+          confirmColor={AnonUTheme.downvoteRed}
+          onConfirm={handleConfirmCommentBlock}
+          onCancel={() => {
+            setCommentBlockConfirmVisible(false);
+            setCommentOptionsTarget(null);
+          }}
+        />
+
+        {/* Comment Report Modal */}
+        <Modal
+          visible={commentReportTargetId !== null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setCommentReportTargetId(null)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.reportModalContainer}>
+              <View style={styles.actionSheetShadow} />
+              <View style={styles.reportCard}>
+                <View style={styles.actionSheetHeader}>
+                  <Text style={styles.actionSheetTitle}>REPORT COMMENT</Text>
+                  <Pressable onPress={() => setCommentReportTargetId(null)}>
+                    <Text style={styles.closeIcon}>✕</Text>
+                  </Pressable>
+                </View>
+                <Text style={styles.reportSub}>Select violation reason for campus moderator review:</Text>
+
+                {reportReasons.map((reason) => {
+                  const isSelected = commentReportReason === reason;
+                  return (
+                    <Pressable
+                      key={reason}
+                      onPress={() => setCommentReportReason(reason)}
+                      style={[
+                        styles.reasonOption,
+                        isSelected && styles.reasonOptionSelected,
+                      ]}
+                    >
+                      <Text style={styles.reasonRadio}>{isSelected ? '●' : '○'}</Text>
+                      <Text style={[styles.reasonText, isSelected && styles.reasonTextSelected]}>
+                        {reason}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+
+                <View style={styles.reportActions}>
+                  <BrutalistButton
+                    text="CANCEL"
+                    backgroundColor="#ECECEC"
+                    shadowOffset={{ width: 2, height: 2 }}
+                    onPress={() => setCommentReportTargetId(null)}
+                  />
+                  <BrutalistButton
+                    text="SUBMIT REPORT"
+                    backgroundColor={AnonUTheme.downvoteRed}
+                    shadowOffset={{ width: 2, height: 2 }}
+                    onPress={handleConfirmCommentReport}
+                  />
+                </View>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -262,10 +592,12 @@ function CommentCard({
   comment,
   isReply = false,
   onReply,
+  onOptions,
 }: {
   comment: CommentModel;
   isReply?: boolean;
   onReply: () => void;
+  onOptions?: () => void;
 }) {
   const isAnon = comment.identity === 'anonymous';
   const name = isAnon ? comment.pseudonym : comment.displayName || comment.pseudonym;
@@ -306,6 +638,12 @@ function CommentCard({
         <Pressable onPress={onReply} style={styles.replyButton}>
           <Text style={styles.replyButtonText}>REPLY</Text>
         </Pressable>
+
+        {onOptions && (
+          <Pressable onPress={onOptions} style={styles.commentMoreBtn}>
+            <Text style={styles.commentMoreText}>⋮</Text>
+          </Pressable>
+        )}
       </View>
 
       <Text style={styles.commentContentText}>{comment.content}</Text>
@@ -474,6 +812,16 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: AnonUTheme.black,
   },
+  commentMoreBtn: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 4,
+  },
+  commentMoreText: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: AnonUTheme.black,
+  },
   commentContentText: {
     fontSize: 13.5,
     lineHeight: 18,
@@ -588,5 +936,135 @@ const styles = StyleSheet.create({
   sendIcon: {
     fontSize: 16,
     color: AnonUTheme.black,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  actionSheetContainer: {
+    position: 'relative',
+    width: '100%',
+    maxWidth: 380,
+  },
+  actionSheetShadow: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    right: 0,
+    bottom: 0,
+    backgroundColor: AnonUTheme.black,
+    borderRadius: AnonUTheme.radiusMd,
+    width: '100%',
+    height: '100%',
+  },
+  actionSheet: {
+    backgroundColor: AnonUTheme.bgSurface,
+    borderColor: AnonUTheme.black,
+    borderWidth: AnonUTheme.borderWidth,
+    borderRadius: AnonUTheme.radiusMd,
+    padding: 20,
+  },
+  actionSheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  actionSheetTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: AnonUTheme.black,
+    letterSpacing: 0.5,
+  },
+  closeIcon: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: AnonUTheme.black,
+    padding: 4,
+  },
+  actionSheetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  actionSheetEmoji: {
+    fontSize: 22,
+    marginRight: 12,
+  },
+  actionSheetTextCol: {
+    flex: 1,
+  },
+  actionSheetItemTitle: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: AnonUTheme.black,
+    letterSpacing: 0.4,
+    marginBottom: 2,
+  },
+  actionSheetItemSub: {
+    fontSize: 11,
+    color: AnonUTheme.textSecondary,
+    fontWeight: '500',
+  },
+  actionSheetDivider: {
+    height: 1.5,
+    backgroundColor: AnonUTheme.borderMuted,
+    marginVertical: 4,
+  },
+  reportModalContainer: {
+    position: 'relative',
+    width: '100%',
+    maxWidth: 400,
+  },
+  reportCard: {
+    backgroundColor: AnonUTheme.bgSurface,
+    borderColor: AnonUTheme.black,
+    borderWidth: AnonUTheme.borderWidth,
+    borderRadius: AnonUTheme.radiusMd,
+    padding: 20,
+  },
+  reportSub: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: AnonUTheme.textSecondary,
+    marginBottom: 14,
+  },
+  reasonOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: AnonUTheme.radiusSm,
+    borderWidth: 1.5,
+    borderColor: AnonUTheme.borderMuted,
+    marginBottom: 8,
+    backgroundColor: AnonUTheme.bgCream,
+  },
+  reasonOptionSelected: {
+    borderColor: AnonUTheme.black,
+    backgroundColor: AnonUTheme.popMint,
+  },
+  reasonRadio: {
+    fontSize: 16,
+    fontWeight: '900',
+    marginRight: 10,
+    color: AnonUTheme.black,
+  },
+  reasonText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: AnonUTheme.black,
+  },
+  reasonTextSelected: {
+    fontWeight: '900',
+  },
+  reportActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 14,
   },
 });

@@ -191,6 +191,15 @@ export const postService = {
     });
   },
 
+  async reportComment(commentId: string, reason: string) {
+    return firestore().collection('reports').add({
+      commentId,
+      reason,
+      status: 'pending',
+      createdAt: firestore.FieldValue.serverTimestamp(),
+    });
+  },
+
   async searchPosts(term: string, campusId?: string): Promise<PostModel[]> {
     const clean = term.toLowerCase().trim().replace(/^#/, '');
     if (!clean) return [];
@@ -258,14 +267,71 @@ export const postService = {
       .collection('reports')
       .where('status', '==', 'pending')
       .orderBy('createdAt', 'desc')
+      .limit(50)
+      .get();
+
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  },
+
+  async resolveReport(params: {
+    reportId: string;
+    action: 'dismiss' | 'hide' | 'restore' | 'strike';
+    postId?: string;
+    reason?: string;
+  }) {
+    const fn = functions().httpsCallable('resolveReport');
+    const result = await fn(params);
+    return result.data as { success: boolean; action: string; strikeDetails?: any };
+  },
+
+  async blockAuthor(params: { postId?: string; commentId?: string }) {
+    const fn = functions().httpsCallable('blockAuthor');
+    const result = await fn(params);
+    return result.data as { success: boolean; message: string };
+  },
+
+  async unblockAuthor(params: { targetUid?: string; postId?: string }) {
+    const fn = functions().httpsCallable('unblockAuthor');
+    const result = await fn(params);
+    return result.data as { success: boolean };
+  },
+
+  subscribeBlockedPosts(uid: string, callback: (blockedPostIds: Set<string>) => void) {
+    return firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('blockedPosts')
+      .onSnapshot((snap) => {
+        const ids = new Set<string>();
+        snap.forEach((doc) => ids.add(doc.id));
+        callback(ids);
+      });
+  },
+
+  async submitAppeal(strikeId: string, explanation: string) {
+    const fn = functions().httpsCallable('submitAppeal');
+    const result = await fn({ strikeId, explanation });
+    return result.data as { success: boolean; appealId: string };
+  },
+
+  async getAppeals() {
+    const snap = await firestore()
+      .collection('appeals')
+      .where('status', '==', 'pending')
+      .orderBy('createdAt', 'desc')
       .limit(30)
       .get();
 
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   },
 
-  async resolveReport(reportId: string, postId?: string, hidePost?: boolean) {
-    const fn = functions().httpsCallable('resolveReport');
-    return fn({ reportId, postId, hidePost });
+  async getModeratorAuditLogs() {
+    const snap = await firestore()
+      .collection('moderatorAuditLog')
+      .orderBy('timestamp', 'desc')
+      .limit(50)
+      .get();
+
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   },
 };
