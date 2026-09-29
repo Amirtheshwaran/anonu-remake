@@ -11,11 +11,22 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
+  Share,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AnonUTheme } from '../../src/constants/theme';
 import { CommentModel, PostIdentity } from '../../src/types/post';
-import { usePost, useComments, useCreateComment, useVotePoll, useRepostMutation } from '../../src/hooks/usePost';
+import {
+  usePost,
+  useComments,
+  useCreateComment,
+  useVotePoll,
+  useRepostMutation,
+  useIsBookmarked,
+  useBookmarkMutation,
+  useUserRsvp,
+  useRsvpMutation,
+} from '../../src/hooks/usePost';
 import { useVoteMutation, useUserVote } from '../../src/hooks/useFeed';
 import { useBlockedPosts } from '../../src/hooks/useBlockedPosts';
 import { useAuthStore } from '../../src/stores/useAuthStore';
@@ -40,6 +51,21 @@ export default function PostThreadScreen() {
   const pollVoteMutation = useVotePoll(id);
   const repostMutation = useRepostMutation();
   const createCommentMutation = useCreateComment(id);
+  const { data: isBookmarked } = useIsBookmarked(id, user?.uid);
+  const bookmarkMutation = useBookmarkMutation(id, user?.uid);
+  const { data: isRsvp } = useUserRsvp(id, user?.uid);
+  const rsvpMutation = useRsvpMutation(id);
+
+  const handleShare = async () => {
+    if (!post) return;
+    try {
+      await Share.share({
+        message: `Read this AnonU campus post: "${post.content.slice(0, 100)}..."\nhttps://anonu.app/post/${post.id}`,
+      });
+    } catch (err) {
+      console.warn('Share error:', err);
+    }
+  };
 
   const [commentText, setCommentText] = useState('');
   const [commentIdentity, setCommentIdentity] = useState<PostIdentity>('anonymous');
@@ -184,6 +210,8 @@ export default function PostThreadScreen() {
             post={post}
             userVote={userVote}
             isDetail={true}
+            isBookmarked={!!isBookmarked}
+            isRsvp={!!isRsvp}
             onUpvote={() => voteMutation.mutate(true)}
             onDownvote={() => voteMutation.mutate(false)}
             onComment={() => {}}
@@ -191,6 +219,9 @@ export default function PostThreadScreen() {
             onReport={() => setPostOptionsVisible(true)}
             onOptions={() => setPostOptionsVisible(true)}
             onPollVote={(idx) => pollVoteMutation.mutate(idx)}
+            onRsvp={() => rsvpMutation.mutate(!isRsvp)}
+            onBookmark={() => bookmarkMutation.mutate({ post, isBookmarked: !!isBookmarked })}
+            onShare={handleShare}
           />
 
           {/* Discussion Header */}

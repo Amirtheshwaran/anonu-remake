@@ -1,5 +1,5 @@
 export type PostIdentity = 'anonymous' | 'identified';
-export type PostType = 'text' | 'poll' | 'image';
+export type PostType = 'text' | 'poll' | 'image' | 'event';
 export type FeedSort = 'hot' | 'recent' | 'top';
 
 export interface PaginatedFeedResult {
@@ -14,9 +14,26 @@ export interface PollData {
   endsAt: Date;
 }
 
+export interface EventData {
+  title: string;
+  eventTime: Date;
+  location: string;
+  rsvpCount: number;
+}
+
+export interface BookmarkModel {
+  id: string;
+  postId: string;
+  savedAt: Date;
+  postPreview: string;
+  authorPseudonym: string;
+  channel?: string;
+}
+
 export interface PostModel {
   id: string;
   campusId: string;
+  channel: string;
   identity: PostIdentity;
   pseudonym: string;
   authorProfileId?: string | null;
@@ -27,6 +44,7 @@ export interface PostModel {
   tags: string[];
   imageUrls: string[];
   poll?: PollData | null;
+  eventData?: EventData | null;
   upvotes: number;
   downvotes: number;
   score: number;

@@ -6,12 +6,13 @@ import { FeedSort, PostModel } from '../types/post';
 export function useFeed(
   sort: FeedSort = 'hot',
   campusId?: string,
-  blockedPostIds?: Set<string>
+  blockedPostIds?: Set<string>,
+  channel?: string
 ) {
   return useQuery({
-    queryKey: ['feed', sort, campusId, blockedPostIds ? Array.from(blockedPostIds) : []],
+    queryKey: ['feed', sort, campusId, channel || 'All', blockedPostIds ? Array.from(blockedPostIds) : []],
     queryFn: async () => {
-      const posts = await postService.getFeed(sort, 25, campusId);
+      const posts = await postService.getFeed(sort, 25, campusId, channel);
       if (blockedPostIds && blockedPostIds.size > 0) {
         return posts.filter((p) => !blockedPostIds.has(p.id));
       }
@@ -24,12 +25,13 @@ export function useFeed(
 export function useInfiniteFeed(
   sort: FeedSort = 'hot',
   campusId?: string,
-  blockedPostIds?: Set<string>
+  blockedPostIds?: Set<string>,
+  channel?: string
 ) {
   return useInfiniteQuery({
-    queryKey: ['infiniteFeed', sort, campusId, blockedPostIds ? Array.from(blockedPostIds) : []],
+    queryKey: ['infiniteFeed', sort, campusId, channel || 'All', blockedPostIds ? Array.from(blockedPostIds) : []],
     queryFn: async ({ pageParam }) => {
-      const result = await postService.getFeedPaginated(sort, 20, campusId, pageParam);
+      const result = await postService.getFeedPaginated(sort, 20, campusId, channel, pageParam);
       if (blockedPostIds && blockedPostIds.size > 0) {
         result.posts = result.posts.filter((p) => !blockedPostIds.has(p.id));
       }

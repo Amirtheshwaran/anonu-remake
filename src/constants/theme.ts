@@ -18,6 +18,7 @@ export const AnonUTheme = {
   popCyan: '#00E5FF',
   popOrange: '#FF5A1F',
   popPurple: '#A388EE',
+  popLavender: '#A388EE',
   popMaroon: '#8B0020',
 
   // Text colors
