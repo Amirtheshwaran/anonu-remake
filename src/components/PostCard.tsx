@@ -11,6 +11,7 @@ import { VoteBar } from './VoteBar';
 import { TagChip } from './TagChip';
 import { ImageGrid } from './ImageGrid';
 import { PollWidget } from './PollWidget';
+import { hapticFeedback } from '../utils/haptics';
 
 interface PostCardProps {
   post: PostModel;
@@ -99,6 +100,8 @@ export const PostCard: React.FC<PostCardProps> = ({
         isDetail ? styles.detailMargin : styles.feedMargin,
       ]}
       padding={16}
+      accessibilityRole="article"
+      accessibilityLabel={`Post by ${authorName}: ${post.content.slice(0, 100)}`}
     >
       {/* Repost Header Banner */}
       {post.isRepost && (
@@ -173,7 +176,21 @@ export const PostCard: React.FC<PostCardProps> = ({
         )}
 
         {/* Options / Report Button */}
-        <Pressable onPress={onOptions || onReport} style={styles.moreButton}>
+        <Pressable
+          onPress={() => {
+            hapticFeedback.light();
+            if (onOptions) {
+              onOptions();
+            } else {
+              onReport();
+            }
+          }}
+          style={styles.moreButton}
+          accessibilityRole="button"
+          accessibilityLabel="Post options"
+          accessibilityHint="Report post or block author"
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
           <Text style={styles.moreDots}>⋮</Text>
         </Pressable>
       </View>
@@ -233,11 +250,18 @@ export const PostCard: React.FC<PostCardProps> = ({
 
             {onRsvp && (
               <Pressable
-                onPress={onRsvp}
+                onPress={() => {
+                  hapticFeedback.medium();
+                  onRsvp();
+                }}
                 style={[
                   styles.rsvpButton,
                   isRsvp && styles.rsvpButtonActive,
                 ]}
+                accessibilityRole="button"
+                accessibilityLabel={isRsvp ? 'Cancel RSVP for event' : 'RSVP to attend event'}
+                accessibilityState={{ selected: isRsvp }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <Text
                   style={[
@@ -274,7 +298,16 @@ export const PostCard: React.FC<PostCardProps> = ({
 
         <View style={styles.actionRightRow}>
           {/* Comment Pill */}
-          <Pressable onPress={onComment} style={styles.actionPill}>
+          <Pressable
+            onPress={() => {
+              hapticFeedback.light();
+              onComment();
+            }}
+            style={styles.actionPill}
+            accessibilityRole="button"
+            accessibilityLabel={`Comments. ${post.commentCount} comments`}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          >
             <View style={styles.pillShadow} />
             <View style={styles.pillFront}>
               <Text style={styles.actionIcon}>💬</Text>
@@ -285,7 +318,16 @@ export const PostCard: React.FC<PostCardProps> = ({
           </Pressable>
 
           {/* Repost Pill */}
-          <Pressable onPress={onRepost} style={styles.actionPill}>
+          <Pressable
+            onPress={() => {
+              hapticFeedback.light();
+              onRepost();
+            }}
+            style={styles.actionPill}
+            accessibilityRole="button"
+            accessibilityLabel={`Repost. ${post.repostCount} reposts`}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          >
             <View style={styles.pillShadow} />
             <View style={styles.pillFront}>
               <Text style={styles.actionIcon}>🔁</Text>
@@ -297,7 +339,17 @@ export const PostCard: React.FC<PostCardProps> = ({
 
           {/* Bookmark Pill */}
           {onBookmark && (
-            <Pressable onPress={onBookmark} style={styles.actionPill}>
+            <Pressable
+              onPress={() => {
+                hapticFeedback.light();
+                onBookmark();
+              }}
+              style={styles.actionPill}
+              accessibilityRole="button"
+              accessibilityLabel={isBookmarked ? 'Remove bookmark' : 'Bookmark post'}
+              accessibilityState={{ selected: isBookmarked }}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
               <View style={styles.pillShadow} />
               <View
                 style={[
@@ -312,7 +364,16 @@ export const PostCard: React.FC<PostCardProps> = ({
 
           {/* Share Pill */}
           {onShare && (
-            <Pressable onPress={onShare} style={styles.actionPill}>
+            <Pressable
+              onPress={() => {
+                hapticFeedback.light();
+                onShare();
+              }}
+              style={styles.actionPill}
+              accessibilityRole="button"
+              accessibilityLabel="Share post link"
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
               <View style={styles.pillShadow} />
               <View style={styles.pillFront}>
                 <Text style={styles.actionIcon}>🔗</Text>

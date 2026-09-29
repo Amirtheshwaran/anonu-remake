@@ -14,6 +14,9 @@ interface BrutalistCardProps {
   padding?: number;
   style?: StyleProp<ViewStyle>;
   onPress?: () => void;
+  accessibilityRole?: any;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
 }
 
 export const BrutalistCard: React.FC<BrutalistCardProps> = ({
@@ -28,9 +31,17 @@ export const BrutalistCard: React.FC<BrutalistCardProps> = ({
   padding,
   style,
   onPress,
+  accessibilityRole,
+  accessibilityLabel,
+  accessibilityHint,
 }) => {
   const content = (
-    <View style={[styles.wrapper, style]}>
+    <View
+      style={[styles.wrapper, style]}
+      accessibilityRole={!onPress ? accessibilityRole : undefined}
+      accessibilityLabel={!onPress ? accessibilityLabel : undefined}
+      accessible={!onPress && !!accessibilityLabel}
+    >
       {hasShadow && (
         <View
           style={[
@@ -63,7 +74,13 @@ export const BrutalistCard: React.FC<BrutalistCardProps> = ({
 
   if (onPress) {
     return (
-      <Pressable onPress={onPress} style={styles.pressableContainer}>
+      <Pressable
+        onPress={onPress}
+        style={styles.pressableContainer}
+        accessibilityRole={accessibilityRole || 'button'}
+        accessibilityLabel={accessibilityLabel}
+        accessibilityHint={accessibilityHint}
+      >
         {content}
       </Pressable>
     );

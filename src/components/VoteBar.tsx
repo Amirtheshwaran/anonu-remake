@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import * as Haptics from 'expo-haptics';
 import { AnonUTheme } from '../constants/theme';
+import { hapticFeedback } from '../utils/haptics';
 
 interface VoteBarProps {
   score: number;
@@ -20,20 +20,12 @@ export const VoteBar: React.FC<VoteBarProps> = ({
   const isDown = userVote === false;
 
   const handleUpvote = () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch {
-      // Ignore
-    }
+    hapticFeedback.light();
     onUpvote();
   };
 
   const handleDownvote = () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch {
-      // Ignore
-    }
+    hapticFeedback.light();
     onDownvote();
   };
 
@@ -54,6 +46,11 @@ export const VoteBar: React.FC<VoteBarProps> = ({
       <View style={styles.bar}>
         {/* Upvote Button */}
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Upvote publication"
+          accessibilityHint="Increases the score and pushes this publication up in the campus feed"
+          accessibilityState={{ selected: isUp }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}
           onPress={handleUpvote}
           style={[styles.arrowButton, isUp && styles.upvoteActive]}
         >
@@ -64,7 +61,11 @@ export const VoteBar: React.FC<VoteBarProps> = ({
         <View style={styles.divider} />
 
         {/* Score counter */}
-        <View style={styles.scoreContainer}>
+        <View
+          accessibilityRole="text"
+          accessibilityLabel={`Publication score: ${score} points`}
+          style={styles.scoreContainer}
+        >
           <Text style={[styles.scoreText, { color: scoreColor }]}>
             {displayScore}
           </Text>
@@ -75,6 +76,11 @@ export const VoteBar: React.FC<VoteBarProps> = ({
 
         {/* Downvote Button */}
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Downvote publication"
+          accessibilityHint="Decreases the score of this publication"
+          accessibilityState={{ selected: isDown }}
+          hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
           onPress={handleDownvote}
           style={[styles.arrowButton, isDown && styles.downvoteActive]}
         >
