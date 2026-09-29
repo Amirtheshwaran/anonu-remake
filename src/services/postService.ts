@@ -1,11 +1,20 @@
 import { firestore, functions } from './firebase';
-import { PostModel, CommentModel, FeedSort, PostIdentity, PostType, PaginatedFeedResult } from '../types/post';
+import {
+  PostModel,
+  CommentModel,
+  FeedSort,
+  PostIdentity,
+  PostType,
+  PaginatedFeedResult,
+  BookmarkModel,
+} from '../types/post';
 
 function parsePostDoc(doc: any): PostModel {
   const data = doc.data() || {};
   return {
     id: doc.id,
     campusId: data.campusId || 'uncc',
+    channel: data.channel || 'General',
     identity: (data.identity as PostIdentity) || 'anonymous',
     pseudonym: data.pseudonym || 'Campus Member',
     authorProfileId: data.authorProfileId || null,
@@ -20,6 +29,14 @@ function parsePostDoc(doc: any): PostModel {
           options: data.poll.options || [],
           votes: data.poll.votes || {},
           endsAt: data.poll.endsAt ? data.poll.endsAt.toDate() : new Date(),
+        }
+      : null,
+    eventData: data.eventData
+      ? {
+          title: data.eventData.title || '',
+          eventTime: data.eventData.eventTime ? data.eventData.eventTime.toDate() : new Date(),
+          location: data.eventData.location || '',
+          rsvpCount: data.eventData.rsvpCount || 0,
         }
       : null,
     upvotes: data.upvotes || 0,
@@ -60,12 +77,17 @@ export const postService = {
     sort: FeedSort = 'hot',
     limit = 20,
     campusId?: string,
+    channel?: string,
     lastDoc?: any | null
   ): Promise<PaginatedFeedResult> {
     let query = firestore().collection('posts').where('isHidden', '==', false);
 
     if (campusId) {
       query = query.where('campusId', '==', campusId);
+    }
+
+    if (channel && channel !== 'All') {
+      query = query.where('channel', '==', channel);
     }
 
     switch (sort) {
@@ -99,11 +121,20 @@ export const postService = {
     };
   },
 
-  async getFeed(sort: FeedSort = 'hot', limit = 25, campusId?: string): Promise<PostModel[]> {
+  async getFeed(
+    sort: FeedSort = 'hot',
+    limit = 25,
+    campusId?: string,
+    channel?: string
+  ): Promise<PostModel[]> {
     let query = firestore().collection('posts').where('isHidden', '==', false);
 
     if (campusId) {
       query = query.where('campusId', '==', campusId);
+    }
+
+    if (channel && channel !== 'All') {
+      query = query.where('channel', '==', channel);
     }
 
     switch (sort) {
@@ -178,17 +209,107 @@ export const postService = {
     content: string;
     identity: PostIdentity;
     type: PostType;
+    channel?: string;
     tags?: string[];
     imageUrls?: string[];
     poll?: {
       options: string[];
       durationHours?: number;
     };
+    eventData?: {
+      title: string;
+      eventTime: Date | string | number;
+      location: string;
+    };
     timeLimitHours?: number | null;
   }) {
     const fn = functions().httpsCallable('createPost');
     const result = await fn(params);
     return result.data as { postId: string; pseudonym: string; campusId: string };
+  },
+
+  async rsvpEvent(postId: string, isGoing: boolean) {
+    const fn = functions().httpsCallable('rsvpEvent');
+    const result = await fn({ postId, isGoing });
+    return result.data as { success: boolean; postId: string; isGoing: boolean; rsvpCount: number };
+  },
+
+  async getUserRsvp(postId: string, uid: string): Promise<boolean> {
+    const snap = await firestore()
+      .collection('posts')
+      .doc(postId)
+      .collection('rsvps')
+      .doc(uid)
+      .get();
+    return snap.exists && snap.data()?.isGoing === true;
+  },
+
+  async bookmarkPost(uid: string, post: PostModel) {
+    return firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('bookmarks')
+      .doc(post.id)
+      .set({
+        postId: post.id,
+        savedAt: firestore.FieldValue.serverTimestamp(),
+        postPreview: post.content.slice(0, 140),
+        authorPseudonym: post.pseudonym,
+        channel: post.channel,
+      });
+  },
+
+  async unbookmarkPost(uid: string, postId: string) {
+    return firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('bookmarks')
+      .doc(postId)
+      .delete();
+  },
+
+  async isPostBookmarked(uid: string, postId: string): Promise<boolean> {
+    const snap = await firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('bookmarks')
+      .doc(postId)
+      .get();
+    return snap.exists;
+  },
+
+  async getBookmarkedPosts(uid: string): Promise<BookmarkModel[]> {
+    const snap = await firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('bookmarks')
+      .orderBy('savedAt', 'desc')
+      .limit(50)
+      .get();
+
+    return snap.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        postId: data.postId || doc.id,
+        savedAt: data.savedAt ? data.savedAt.toDate() : new Date(),
+        postPreview: data.postPreview || '',
+        authorPseudonym: data.authorPseudonym || 'Campus Member',
+        channel: data.channel || 'General',
+      };
+    });
+  },
+
+  subscribeBookmarks(uid: string, callback: (bookmarkedIds: Set<string>) => void) {
+    return firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('bookmarks')
+      .onSnapshot((snap) => {
+        const ids = new Set<string>();
+        snap.forEach((doc) => ids.add(doc.id));
+        callback(ids);
+      });
   },
 
   async createComment(params: {

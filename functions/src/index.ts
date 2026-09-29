@@ -17,4 +17,5 @@ export { onUserCreate } from './triggers/onUserCreate';
 export { cleanupExpiredPosts } from './scheduled/cleanupExpiredPosts';
 export { recomputeActiveHotScores } from './scheduled/recomputeActiveHotScores';
 export { recomputeHotScores } from './callable/recomputeHotScores';
+export { rsvpEvent } from './callable/rsvpEvent';
 

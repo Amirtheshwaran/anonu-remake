@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { PostModel } from '../types/post';
 import { AnonUTheme } from '../constants/theme';
+import { CAMPUS_CHANNELS } from '../constants/channels';
 import { PseudonymService } from '../services/pseudonymService';
 import { BrutalistCard } from './BrutalistCard';
 import { BrutalistBadge } from './BrutalistBadge';
@@ -14,6 +15,8 @@ import { PollWidget } from './PollWidget';
 interface PostCardProps {
   post: PostModel;
   userVote?: boolean | null;
+  isBookmarked?: boolean;
+  isRsvp?: boolean;
   isDetail?: boolean;
   onPress?: () => void;
   onUpvote: () => void;
@@ -23,11 +26,16 @@ interface PostCardProps {
   onReport: () => void;
   onOptions?: () => void;
   onPollVote?: (index: number) => void;
+  onRsvp?: () => void;
+  onBookmark?: () => void;
+  onShare?: () => void;
 }
 
 export const PostCard: React.FC<PostCardProps> = ({
   post,
   userVote = null,
+  isBookmarked = false,
+  isRsvp = false,
   isDetail = false,
   onPress,
   onUpvote,
@@ -37,6 +45,9 @@ export const PostCard: React.FC<PostCardProps> = ({
   onReport,
   onOptions,
   onPollVote,
+  onRsvp,
+  onBookmark,
+  onShare,
 }) => {
   const isAnon = post.identity === 'anonymous';
   const authorName = isAnon ? post.pseudonym : post.displayName || post.pseudonym;
@@ -63,6 +74,21 @@ export const PostCard: React.FC<PostCardProps> = ({
     const days = Math.floor(hours / 24);
     return `${days}D AGO`;
   };
+
+  const formatEventTime = (time: any) => {
+    if (!time) return 'TBA';
+    const d = time instanceof Date ? time : new Date(time);
+    if (isNaN(d.getTime())) return 'TBA';
+    return d.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  };
+
+  const channelInfo = CAMPUS_CHANNELS.find((c) => c.id === post.channel);
 
   return (
     <BrutalistCard
@@ -119,6 +145,17 @@ export const PostCard: React.FC<PostCardProps> = ({
               borderWidth={1.5}
               hasShadow={false}
             />
+            {channelInfo && (
+              <View style={{ marginLeft: 5 }}>
+                <BrutalistBadge
+                  label={`${channelInfo.emoji} #${channelInfo.name.toUpperCase()}`}
+                  backgroundColor={channelInfo.accentColor}
+                  fontSize={8}
+                  borderWidth={1.5}
+                  hasShadow={false}
+                />
+              </View>
+            )}
           </View>
           <Text style={styles.timeagoText}>
             {formatTimeago(post.createdAt)}
@@ -159,6 +196,62 @@ export const PostCard: React.FC<PostCardProps> = ({
       >
         {post.content}
       </Text>
+
+      {/* Campus Event Card */}
+      {post.type === 'event' && post.eventData && (
+        <View style={styles.eventCard}>
+          <View style={styles.eventTopRow}>
+            <View style={styles.eventBadge}>
+              <Text style={styles.eventBadgeText}>CAMPUS EVENT</Text>
+            </View>
+            <Text style={styles.eventTitle} numberOfLines={1}>
+              {post.eventData.title}
+            </Text>
+          </View>
+
+          <View style={styles.eventInfoGrid}>
+            <View style={styles.eventInfoItem}>
+              <Text style={styles.eventInfoEmoji}>📅</Text>
+              <Text style={styles.eventInfoText}>
+                {formatEventTime(post.eventData.eventTime)}
+              </Text>
+            </View>
+            <View style={styles.eventInfoItem}>
+              <Text style={styles.eventInfoEmoji}>📍</Text>
+              <Text style={styles.eventInfoText} numberOfLines={1}>
+                {post.eventData.location}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.eventActionRow}>
+            <View style={styles.rsvpBadge}>
+              <Text style={styles.rsvpBadgeText}>
+                {`👥 ${post.eventData.rsvpCount || 0} ATTENDING`}
+              </Text>
+            </View>
+
+            {onRsvp && (
+              <Pressable
+                onPress={onRsvp}
+                style={[
+                  styles.rsvpButton,
+                  isRsvp && styles.rsvpButtonActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.rsvpButtonText,
+                    isRsvp && styles.rsvpButtonTextActive,
+                  ]}
+                >
+                  {isRsvp ? 'ATTENDING ✓' : '+ RSVP'}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
+      )}
 
       {/* Image Grid */}
       {post.imageUrls && post.imageUrls.length > 0 && (
@@ -201,6 +294,31 @@ export const PostCard: React.FC<PostCardProps> = ({
               )}
             </View>
           </Pressable>
+
+          {/* Bookmark Pill */}
+          {onBookmark && (
+            <Pressable onPress={onBookmark} style={styles.actionPill}>
+              <View style={styles.pillShadow} />
+              <View
+                style={[
+                  styles.pillFront,
+                  isBookmarked && { backgroundColor: AnonUTheme.popYellow },
+                ]}
+              >
+                <Text style={styles.actionIcon}>{isBookmarked ? '🔖' : '🏷️'}</Text>
+              </View>
+            </Pressable>
+          )}
+
+          {/* Share Pill */}
+          {onShare && (
+            <Pressable onPress={onShare} style={styles.actionPill}>
+              <View style={styles.pillShadow} />
+              <View style={styles.pillFront}>
+                <Text style={styles.actionIcon}>🔗</Text>
+              </View>
+            </Pressable>
+          )}
         </View>
       </View>
     </BrutalistCard>
@@ -376,5 +494,98 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
     marginLeft: 5,
+  },
+  eventCard: {
+    backgroundColor: '#F7F3FF',
+    borderColor: AnonUTheme.black,
+    borderWidth: 1.5,
+    borderRadius: AnonUTheme.radiusSm,
+    padding: 12,
+    marginVertical: 8,
+  },
+  eventTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  eventBadge: {
+    backgroundColor: AnonUTheme.popLavender,
+    borderColor: AnonUTheme.black,
+    borderWidth: 1.2,
+    borderRadius: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginRight: 8,
+  },
+  eventBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '900',
+    color: AnonUTheme.black,
+    letterSpacing: 0.5,
+  },
+  eventTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: AnonUTheme.black,
+    flex: 1,
+  },
+  eventInfoGrid: {
+    gap: 4,
+    marginBottom: 10,
+  },
+  eventInfoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  eventInfoEmoji: {
+    fontSize: 13,
+    marginRight: 6,
+  },
+  eventInfoText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: AnonUTheme.textSecondary,
+    flex: 1,
+  },
+  eventActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: AnonUTheme.borderMuted,
+  },
+  rsvpBadge: {
+    backgroundColor: AnonUTheme.bgCream,
+    borderColor: AnonUTheme.black,
+    borderWidth: 1,
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  rsvpBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: AnonUTheme.black,
+  },
+  rsvpButton: {
+    backgroundColor: AnonUTheme.bgSurface,
+    borderColor: AnonUTheme.black,
+    borderWidth: 1.5,
+    borderRadius: AnonUTheme.radiusSm,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  rsvpButtonActive: {
+    backgroundColor: AnonUTheme.popMint,
+  },
+  rsvpButtonText: {
+    fontSize: 11.5,
+    fontWeight: '900',
+    color: AnonUTheme.black,
+    letterSpacing: 0.3,
+  },
+  rsvpButtonTextActive: {
+    color: AnonUTheme.black,
   },
 });

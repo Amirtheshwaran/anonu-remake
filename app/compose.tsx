@@ -21,6 +21,7 @@ import { useOutboxStore } from '../src/stores/useOutboxStore';
 import { AnonUTheme } from '../src/constants/theme';
 import { AnonUConstants } from '../src/constants/config';
 import { DEFAULT_CAMPUSES } from '../src/constants/campuses';
+import { CAMPUS_CHANNELS } from '../src/constants/channels';
 import { PostIdentity, PostType } from '../src/types/post';
 import { BrutalistCard } from '../src/components/BrutalistCard';
 import { BrutalistButton } from '../src/components/BrutalistButton';
@@ -34,6 +35,7 @@ export default function ComposeScreen() {
   const [content, setContent] = useState('');
   const [identity, setIdentity] = useState<PostIdentity>('anonymous');
   const [type, setType] = useState<PostType>('text');
+  const [channel, setChannel] = useState<string>('General');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [timeLimitHours, setTimeLimitHours] = useState<number | null>(null);
   const [images, setImages] = useState<string[]>([]);
@@ -43,6 +45,11 @@ export default function ComposeScreen() {
   const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
   const [expiryModalVisible, setExpiryModalVisible] = useState(false);
 
+  // Event
+  const [eventTitle, setEventTitle] = useState('');
+  const [eventLocation, setEventLocation] = useState('');
+  const [eventHoursAhead, setEventHoursAhead] = useState<number>(24);
+
   const charCount = content.length;
   const canPost =
     content.trim().length > 0 &&
@@ -50,6 +57,38 @@ export default function ComposeScreen() {
     !loading;
 
   const hasVerifiedProfile = Boolean(user?.displayName);
+
+  const handleSelectEventType = () => {
+    if (type === 'event') {
+      setType('text');
+      return;
+    }
+    if (!hasVerifiedProfile) {
+      Alert.alert(
+        'Verified Real Name Required',
+        'Campus events must be published under your verified real name to prevent fraudulent assemblies. Please set your display name in your profile first.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Go to Profile', onPress: () => router.push('/(tabs)/profile') },
+        ]
+      );
+      return;
+    }
+    setType('event');
+    setIdentity('identified');
+    setChannel('Events');
+  };
+
+  const handleSelectIdentity = (nextIdentity: PostIdentity) => {
+    if (type === 'event' && nextIdentity === 'anonymous') {
+      Alert.alert(
+        'Events Cannot Be Anonymous',
+        'Campus events must be published under your verified real name. Change the post type to text or poll to publish anonymously.'
+      );
+      return;
+    }
+    setIdentity(nextIdentity);
+  };
 
   const handlePickImages = async () => {
     const remaining = AnonUConstants.maxImages - images.length;
@@ -125,13 +164,35 @@ export default function ComposeScreen() {
         };
       }
 
+      let eventData = undefined;
+      if (type === 'event') {
+        if (!eventTitle.trim()) {
+          Alert.alert('Missing Event Title', 'Please enter a title for this campus event.');
+          setLoading(false);
+          return;
+        }
+        if (!eventLocation.trim()) {
+          Alert.alert('Missing Location', 'Please specify where on campus this event will be held.');
+          setLoading(false);
+          return;
+        }
+        const eventDate = new Date(Date.now() + eventHoursAhead * 3600 * 1000);
+        eventData = {
+          title: eventTitle.trim(),
+          eventTime: eventDate.toISOString(),
+          location: eventLocation.trim(),
+        };
+      }
+
       await postService.createPost({
         content: content.trim(),
         identity,
-        type: uploadedUrls.length > 0 ? 'image' : type === 'poll' ? 'poll' : 'text',
+        type: uploadedUrls.length > 0 ? 'image' : type === 'poll' ? 'poll' : type === 'event' ? 'event' : 'text',
+        channel,
         tags: selectedTags,
         imageUrls: uploadedUrls,
         poll: pollData,
+        eventData,
         timeLimitHours,
       });
 
@@ -217,13 +278,55 @@ export default function ComposeScreen() {
           </View>
         </View>
 
+        {/* Channel Selector */}
+        <View style={styles.channelSelectWrapper}>
+          <Text style={styles.channelSelectLabel}>TARGET CHANNEL:</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.channelSelectRow}
+          >
+            {CAMPUS_CHANNELS.map((ch) => {
+              const isSelected = channel === ch.id;
+              return (
+                <Pressable
+                  key={ch.id}
+                  onPress={() => {
+                    setChannel(ch.id);
+                    if (ch.id === 'Events') {
+                      handleSelectEventType();
+                    }
+                  }}
+                  style={[
+                    styles.channelSelectChip,
+                    isSelected && {
+                      backgroundColor: ch.accentColor,
+                      borderColor: AnonUTheme.black,
+                    },
+                  ]}
+                >
+                  <Text style={styles.channelChipEmoji}>{ch.emoji}</Text>
+                  <Text
+                    style={[
+                      styles.channelChipText,
+                      isSelected && styles.channelChipTextActive,
+                    ]}
+                  >
+                    {`#${ch.name.toUpperCase()}`}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+
         {/* Identity Selector */}
         <View style={styles.identityCard}>
           <View style={styles.identityShadow} />
           <View style={styles.identityRow}>
             {/* Anonymous Mask */}
             <Pressable
-              onPress={() => setIdentity('anonymous')}
+              onPress={() => handleSelectIdentity('anonymous')}
               style={[
                 styles.identityOption,
                 identity === 'anonymous' && styles.identityOptionMint,
@@ -240,7 +343,7 @@ export default function ComposeScreen() {
 
             {/* Verified Profile */}
             <Pressable
-              onPress={() => hasVerifiedProfile && setIdentity('identified')}
+              onPress={() => hasVerifiedProfile && handleSelectIdentity('identified')}
               disabled={!hasVerifiedProfile}
               style={[
                 styles.identityOption,
@@ -295,7 +398,7 @@ export default function ComposeScreen() {
           </View>
         </BrutalistCard>
 
-        {/* Option Pills (Poll, Images, Expiry) */}
+        {/* Option Pills (Poll, Event, Images, Expiry) */}
         <View style={styles.optionPillsRow}>
           {/* Poll Toggle */}
           <Pressable
@@ -307,6 +410,18 @@ export default function ComposeScreen() {
           >
             <Text style={styles.pillIcon}>📊</Text>
             <Text style={styles.pillLabel}>POLL</Text>
+          </Pressable>
+
+          {/* Event Toggle */}
+          <Pressable
+            onPress={handleSelectEventType}
+            style={[
+              styles.pillButton,
+              type === 'event' && { backgroundColor: AnonUTheme.popLavender },
+            ]}
+          >
+            <Text style={styles.pillIcon}>🎉</Text>
+            <Text style={styles.pillLabel}>EVENT</Text>
           </Pressable>
 
           {/* Image Picker */}
@@ -335,6 +450,76 @@ export default function ComposeScreen() {
             </Text>
           </Pressable>
         </View>
+
+        {/* Event Details Creator Block */}
+        {type === 'event' && (
+          <BrutalistCard padding={16} style={styles.blockMargin}>
+            <View style={styles.eventCreatorHeader}>
+              <Text style={styles.sectionHeaderTitle}>🎉 CAMPUS EVENT DETAILS</Text>
+            </View>
+
+            <Text style={styles.inputMiniLabel}>EVENT TITLE</Text>
+            <TextInput
+              value={eventTitle}
+              onChangeText={setEventTitle}
+              placeholder="e.g. ACM Spring Hackathon Kickoff"
+              placeholderTextColor={AnonUTheme.textMuted}
+              style={styles.eventTextInput}
+              maxLength={100}
+            />
+
+            <Text style={[styles.inputMiniLabel, { marginTop: 10 }]}>CAMPUS LOCATION</Text>
+            <TextInput
+              value={eventLocation}
+              onChangeText={setEventLocation}
+              placeholder="e.g. Student Union Rm 204 / Quad Lawn"
+              placeholderTextColor={AnonUTheme.textMuted}
+              style={styles.eventTextInput}
+              maxLength={100}
+            />
+
+            <Text style={[styles.inputMiniLabel, { marginTop: 10 }]}>WHEN IS THE EVENT?</Text>
+            <View style={styles.timeQuickRow}>
+              {[
+                { label: 'In 4h', hours: 4 },
+                { label: 'Tomorrow (+24h)', hours: 24 },
+                { label: 'In 2 Days (+48h)', hours: 48 },
+                { label: 'This Weekend (+72h)', hours: 72 },
+                { label: 'Next Week (+7d)', hours: 168 },
+              ].map((item) => {
+                const isSelected = eventHoursAhead === item.hours;
+                return (
+                  <Pressable
+                    key={item.hours}
+                    onPress={() => setEventHoursAhead(item.hours)}
+                    style={[
+                      styles.timeQuickChip,
+                      isSelected && styles.timeQuickChipActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.timeQuickText,
+                        isSelected && styles.timeQuickTextActive,
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text style={styles.eventComputedDateText}>
+              📅 {new Date(Date.now() + eventHoursAhead * 3600 * 1000).toLocaleString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+              })}
+            </Text>
+          </BrutalistCard>
+        )}
 
         {/* Poll Creator Block */}
         {type === 'poll' && (
@@ -836,5 +1021,97 @@ const styles = StyleSheet.create({
     color: AnonUTheme.black,
     fontWeight: '800',
     fontSize: 13,
+  },
+  channelSelectWrapper: {
+    marginBottom: 12,
+  },
+  channelSelectLabel: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: AnonUTheme.black,
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  channelSelectRow: {
+    gap: 6,
+  },
+  channelSelectChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: AnonUTheme.bgSurface,
+    borderColor: AnonUTheme.black,
+    borderWidth: AnonUTheme.borderWidthThin,
+    borderRadius: AnonUTheme.radiusSm,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  channelChipEmoji: {
+    fontSize: 13,
+    marginRight: 5,
+  },
+  channelChipText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: AnonUTheme.black,
+    letterSpacing: 0.3,
+  },
+  channelChipTextActive: {
+    fontWeight: '900',
+  },
+  eventCreatorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  inputMiniLabel: {
+    fontSize: 10.5,
+    fontWeight: '900',
+    color: AnonUTheme.black,
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  eventTextInput: {
+    backgroundColor: AnonUTheme.bgCream,
+    borderColor: AnonUTheme.black,
+    borderWidth: 1.5,
+    borderRadius: AnonUTheme.radiusSm,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontWeight: '700',
+    fontSize: 13,
+    color: AnonUTheme.black,
+  },
+  timeQuickRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 8,
+  },
+  timeQuickChip: {
+    backgroundColor: AnonUTheme.bgCream,
+    borderColor: AnonUTheme.black,
+    borderWidth: 1.2,
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  timeQuickChipActive: {
+    backgroundColor: AnonUTheme.popLavender,
+    borderColor: AnonUTheme.black,
+  },
+  timeQuickText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: AnonUTheme.black,
+  },
+  timeQuickTextActive: {
+    fontWeight: '900',
+  },
+  eventComputedDateText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: AnonUTheme.textSecondary,
+    marginTop: 4,
   },
 });

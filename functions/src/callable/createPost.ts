@@ -9,12 +9,18 @@ import { screenContent } from '../utils/moderation';
 interface CreatePostData {
   content: string;
   identity: 'anonymous' | 'identified';
-  type: 'text' | 'poll' | 'image';
+  type: 'text' | 'poll' | 'image' | 'event';
+  channel?: string;
   tags?: string[];
   imageUrls?: string[];
   poll?: {
     options: string[];
     durationHours?: number;
+  };
+  eventData?: {
+    title: string;
+    eventTime: string | number;
+    location: string;
   };
   timeLimitHours?: number | null;
 }
@@ -116,6 +122,38 @@ export const createPost = onCall(async (request) => {
     };
   }
 
+  const allowedChannels = ['General', 'Classes', 'Housing', 'Marketplace', 'Events', 'LostAndFound'];
+  const channel = data.channel && allowedChannels.includes(data.channel) ? data.channel : 'General';
+
+  // Validate Event
+  let eventData = null;
+  if (data.type === 'event') {
+    if (data.identity !== 'identified') {
+      throw new HttpsError(
+        'invalid-argument',
+        'Campus events must be published under your verified identity to prevent fraudulent assemblies.'
+      );
+    }
+    if (!data.eventData || !data.eventData.title?.trim() || !data.eventData.location?.trim()) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Event posts must include a title, event date/time, and campus location.'
+      );
+    }
+
+    const eventDate = new Date(data.eventData.eventTime);
+    if (isNaN(eventDate.getTime())) {
+      throw new HttpsError('invalid-argument', 'Invalid event date/time format.');
+    }
+
+    eventData = {
+      title: data.eventData.title.trim().slice(0, 100),
+      eventTime: admin.firestore.Timestamp.fromDate(eventDate),
+      location: data.eventData.location.trim().slice(0, 100),
+      rsvpCount: 0,
+    };
+  }
+
   // Calculate Expiration
   let expiresAt = null;
   if (data.timeLimitHours && data.timeLimitHours > 0) {
@@ -160,6 +198,7 @@ export const createPost = onCall(async (request) => {
     // 2. Public post document (NO authorUid)
     transaction.set(postRef, {
       campusId,
+      channel,
       identity: data.identity,
       pseudonym,
       authorProfileId,
@@ -170,6 +209,7 @@ export const createPost = onCall(async (request) => {
       tags,
       imageUrls,
       poll: pollData,
+      eventData,
       upvotes: 0,
       downvotes: 0,
       score: 0,

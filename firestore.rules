@@ -36,6 +36,12 @@ service cloud.firestore {
         allow read: if isOwner(userId);
         allow write: if isEmailVerified() && isOwner(userId);
       }
+
+      // Event RSVPs subcollection: readable by campus, owner-only write
+      match /rsvps/{userId} {
+        allow read: if isSignedIn();
+        allow write: if isEmailVerified() && isOwner(userId);
+      }
     }
 
     // Private author mappings (Owner can read their own list; writes locked to Cloud Functions)
@@ -65,6 +71,11 @@ service cloud.firestore {
       }
 
       match /blockedPosts/{postId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Bookmarks subcollection: strictly owner-only
+      match /bookmarks/{bookmarkId} {
         allow read, write: if isOwner(userId);
       }
 

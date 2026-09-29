@@ -19,6 +19,8 @@ import { useAuthStore } from '../../src/stores/useAuthStore';
 import { authService } from '../../src/services/authService';
 import { postService } from '../../src/services/postService';
 import { useUserPosts } from '../../src/hooks/useFeed';
+import { useBookmarkedPosts } from '../../src/hooks/usePost';
+import { CAMPUS_CHANNELS } from '../../src/constants/channels';
 import { PseudonymService } from '../../src/services/pseudonymService';
 import { BrutalistCard } from '../../src/components/BrutalistCard';
 import { BrutalistButton } from '../../src/components/BrutalistButton';
@@ -31,6 +33,9 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { user, setUser, reset } = useAuthStore();
   const { data: ownPosts, isLoading: postsLoading, refetch } = useUserPosts(user?.uid);
+  const { data: bookmarkedPosts, isLoading: bookmarksLoading, refetch: refetchBookmarks } = useBookmarkedPosts(user?.uid);
+
+  const [profileTab, setProfileTab] = useState<'posts' | 'bookmarks'>('posts');
 
   // Edit Profile modal
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -286,38 +291,118 @@ export default function ProfileScreen() {
           </BrutalistCard>
         )}
 
-        {/* Publications Header */}
-        <View style={styles.archiveHeader}>
-          <View style={styles.archiveBadge}>
-            <Text style={styles.archiveBadgeText}>ARCHIVE</Text>
+        {/* Profile Subtabs (Posts / Bookmarks) */}
+        <View style={styles.subtabsWrapper}>
+          <View style={styles.subtabsShadow} />
+          <View style={styles.subtabsRow}>
+            <Pressable
+              onPress={() => setProfileTab('posts')}
+              style={[
+                styles.subtabButton,
+                profileTab === 'posts' && styles.subtabActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.subtabText,
+                  profileTab === 'posts' && styles.subtabTextActive,
+                ]}
+              >
+                {`📜 PUBLICATIONS (${ownPosts?.length || 0})`}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => setProfileTab('bookmarks')}
+              style={[
+                styles.subtabButton,
+                profileTab === 'bookmarks' && styles.subtabActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.subtabText,
+                  profileTab === 'bookmarks' && styles.subtabTextActive,
+                ]}
+              >
+                {`🔖 SAVED (${bookmarkedPosts?.length || 0})`}
+              </Text>
+            </Pressable>
           </View>
-          <Text style={styles.archiveTitle}>YOUR PUBLICATIONS</Text>
         </View>
 
-        {/* Own Posts List */}
-        {postsLoading ? (
-          <ActivityIndicator style={{ marginVertical: 20 }} color={AnonUTheme.black} />
-        ) : !ownPosts || ownPosts.length === 0 ? (
-          <BrutalistCard padding={20} style={styles.emptyArchiveCard}>
-            <Text style={styles.emptyIcon}>📜</Text>
-            <Text style={styles.emptyArchiveTitle}>NO POSTS PUBLISHED YET</Text>
-            <Text style={styles.emptyArchiveSub}>
-              Your anonymous and identified campus posts will be indexed here.
-            </Text>
-          </BrutalistCard>
+        {/* Content based on subtab */}
+        {profileTab === 'posts' ? (
+          postsLoading ? (
+            <ActivityIndicator style={{ marginVertical: 20 }} color={AnonUTheme.black} />
+          ) : !ownPosts || ownPosts.length === 0 ? (
+            <BrutalistCard padding={20} style={styles.emptyArchiveCard}>
+              <Text style={styles.emptyIcon}>📜</Text>
+              <Text style={styles.emptyArchiveTitle}>NO POSTS PUBLISHED YET</Text>
+              <Text style={styles.emptyArchiveSub}>
+                Your anonymous and identified campus posts will be indexed here.
+              </Text>
+            </BrutalistCard>
+          ) : (
+            ownPosts.map((post) => (
+              <PostCard
+                key={post.id}
+                post={post}
+                onPress={() => router.push(`/post/${post.id}` as any)}
+                onUpvote={() => {}}
+                onDownvote={() => {}}
+                onComment={() => router.push(`/post/${post.id}` as any)}
+                onRepost={() => {}}
+                onReport={() => {}}
+              />
+            ))
+          )
         ) : (
-          ownPosts.map((post) => (
-            <PostCard
-              key={post.id}
-              post={post}
-              onPress={() => router.push(`/post/${post.id}` as any)}
-              onUpvote={() => {}}
-              onDownvote={() => {}}
-              onComment={() => router.push(`/post/${post.id}` as any)}
-              onRepost={() => {}}
-              onReport={() => {}}
-            />
-          ))
+          bookmarksLoading ? (
+            <ActivityIndicator style={{ marginVertical: 20 }} color={AnonUTheme.black} />
+          ) : !bookmarkedPosts || bookmarkedPosts.length === 0 ? (
+            <BrutalistCard padding={20} style={styles.emptyArchiveCard}>
+              <Text style={styles.emptyIcon}>🔖</Text>
+              <Text style={styles.emptyArchiveTitle}>NO SAVED THREADS</Text>
+              <Text style={styles.emptyArchiveSub}>
+                Bookmark campus threads using the ribbon icon to save them here for quick access.
+              </Text>
+            </BrutalistCard>
+          ) : (
+            bookmarkedPosts.map((bm) => (
+              <Pressable
+                key={bm.id}
+                onPress={() => router.push(`/post/${bm.postId}` as any)}
+              >
+                <BrutalistCard padding={14} style={styles.bookmarkCard}>
+                  <View style={styles.bookmarkHeader}>
+                    <BrutalistBadge
+                      label={`#${(bm.channel || 'General').toUpperCase()}`}
+                      backgroundColor={AnonUTheme.popCyan}
+                      fontSize={8}
+                      borderWidth={1.5}
+                      hasShadow={false}
+                    />
+                    <Text style={styles.bookmarkAuthor}>@{bm.authorPseudonym}</Text>
+                    <Pressable
+                      onPress={async () => {
+                        if (user) {
+                          await postService.unbookmarkPost(user.uid, bm.postId);
+                          refetchBookmarks();
+                        }
+                      }}
+                      style={styles.unbookmarkBtn}
+                    >
+                      <Text style={styles.unbookmarkText}>✕ REMOVE</Text>
+                    </Pressable>
+                  </View>
+                  <Text style={styles.bookmarkPreview} numberOfLines={2}>
+                    {bm.postPreview}
+                  </Text>
+                </BrutalistCard>
+              </Pressable>
+            ))
+          )
         )}
       </ScrollView>
 
@@ -647,5 +732,86 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     marginTop: 18,
+  },
+  subtabsWrapper: {
+    position: 'relative',
+    marginHorizontal: 14,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  subtabsShadow: {
+    position: 'absolute',
+    top: 2.5,
+    left: 2.5,
+    right: 0,
+    bottom: 0,
+    backgroundColor: AnonUTheme.black,
+    borderRadius: AnonUTheme.radiusSm,
+    width: '100%',
+    height: 40,
+  },
+  subtabsRow: {
+    flexDirection: 'row',
+    height: 40,
+    backgroundColor: AnonUTheme.bgSurface,
+    borderColor: AnonUTheme.black,
+    borderWidth: AnonUTheme.borderWidthThin,
+    borderRadius: AnonUTheme.radiusSm,
+    padding: 3,
+  },
+  subtabButton: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: AnonUTheme.radiusSm - 2,
+  },
+  subtabActive: {
+    backgroundColor: AnonUTheme.popYellow,
+    borderColor: AnonUTheme.black,
+    borderWidth: AnonUTheme.borderWidthThin,
+  },
+  subtabText: {
+    color: AnonUTheme.black,
+    fontWeight: '700',
+    fontSize: 11.5,
+    letterSpacing: 0.4,
+  },
+  subtabTextActive: {
+    fontWeight: '900',
+  },
+  bookmarkCard: {
+    marginHorizontal: 14,
+    marginVertical: 4,
+  },
+  bookmarkHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  bookmarkAuthor: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: AnonUTheme.textSecondary,
+    marginLeft: 8,
+    flex: 1,
+  },
+  unbookmarkBtn: {
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    backgroundColor: AnonUTheme.bgCream,
+    borderColor: AnonUTheme.black,
+    borderWidth: 1,
+    borderRadius: 3,
+  },
+  unbookmarkText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: AnonUTheme.downvoteRed,
+  },
+  bookmarkPreview: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600',
+    color: AnonUTheme.black,
   },
 });

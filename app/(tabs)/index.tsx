@@ -4,19 +4,29 @@ import {
   Text,
   StyleSheet,
   SafeAreaView,
+  ScrollView,
   Pressable,
   ActivityIndicator,
   Modal,
+  Share,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { AnonUTheme } from '../../src/constants/theme';
 import { DEFAULT_CAMPUSES } from '../../src/constants/campuses';
+import { CAMPUS_CHANNELS } from '../../src/constants/channels';
 import { FeedSort, PostModel } from '../../src/types/post';
 import { useInfiniteFeed, useVoteMutation, useUserVote } from '../../src/hooks/useFeed';
 import { useBlockedPosts } from '../../src/hooks/useBlockedPosts';
 import { useMoodBoard, useCheckInMood } from '../../src/hooks/useMood';
-import { useRepostMutation, useVotePoll } from '../../src/hooks/usePost';
+import {
+  useRepostMutation,
+  useVotePoll,
+  useIsBookmarked,
+  useBookmarkMutation,
+  useUserRsvp,
+  useRsvpMutation,
+} from '../../src/hooks/usePost';
 import { useOutboxStore } from '../../src/stores/useOutboxStore';
 import { postService } from '../../src/services/postService';
 import { useAuthStore } from '../../src/stores/useAuthStore';
@@ -35,6 +45,7 @@ export default function FeedScreen() {
   const currentCampus = DEFAULT_CAMPUSES[selectedCampusId] || DEFAULT_CAMPUSES['uncc'];
 
   const [selectedSort, setSelectedSort] = useState<FeedSort>('hot');
+  const [selectedChannel, setSelectedChannel] = useState<string>('All');
 
   const { blockedPostIds, blockAuthor } = useBlockedPosts();
   const outboxQueue = useOutboxStore((s) => s.queue);
@@ -48,7 +59,7 @@ export default function FeedScreen() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useInfiniteFeed(selectedSort, selectedCampusId, blockedPostIds);
+  } = useInfiniteFeed(selectedSort, selectedCampusId, blockedPostIds, selectedChannel);
 
   const posts = infiniteData?.pages.flatMap((page) => page.posts) || [];
   const { counts: moodCounts } = useMoodBoard(selectedCampusId);
@@ -199,6 +210,61 @@ export default function FeedScreen() {
             );
           })}
         </View>
+      </View>
+
+      {/* Campus Channels Horizontal Filter */}
+      <View style={styles.channelScrollWrapper}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.channelScrollContent}
+        >
+          {/* All Channels Chip */}
+          <Pressable
+            onPress={() => setSelectedChannel('All')}
+            style={[
+              styles.channelChip,
+              selectedChannel === 'All' && styles.channelChipAllActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.channelChipText,
+                selectedChannel === 'All' && styles.channelChipTextActive,
+              ]}
+            >
+              🔥 ALL
+            </Text>
+          </Pressable>
+
+          {/* Individual Campus Channels */}
+          {CAMPUS_CHANNELS.map((ch) => {
+            const isSelected = selectedChannel === ch.id;
+            return (
+              <Pressable
+                key={ch.id}
+                onPress={() => setSelectedChannel(ch.id)}
+                style={[
+                  styles.channelChip,
+                  isSelected && {
+                    backgroundColor: ch.accentColor,
+                    borderColor: AnonUTheme.black,
+                  },
+                ]}
+              >
+                <Text style={styles.channelChipEmoji}>{ch.emoji}</Text>
+                <Text
+                  style={[
+                    styles.channelChipText,
+                    isSelected && styles.channelChipTextActive,
+                  ]}
+                >
+                  {`#${ch.name.toUpperCase()}`}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
       </View>
 
       {/* Outbox Pending Banner */}
@@ -456,11 +522,27 @@ function PostItemRow({
   const { data: userVote } = useUserVote(post.id, uid);
   const voteMutation = useVoteMutation(post.id, uid);
   const pollVoteMutation = useVotePoll(post.id);
+  const { data: isBookmarked } = useIsBookmarked(post.id, uid);
+  const bookmarkMutation = useBookmarkMutation(post.id, uid);
+  const { data: isRsvp } = useUserRsvp(post.id, uid);
+  const rsvpMutation = useRsvpMutation(post.id);
+
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: `Check out this AnonU campus post: "${post.content.slice(0, 100)}..."\nhttps://anonu.app/post/${post.id}`,
+      });
+    } catch (err) {
+      console.warn('Share error:', err);
+    }
+  };
 
   return (
     <PostCard
       post={post}
       userVote={userVote}
+      isBookmarked={!!isBookmarked}
+      isRsvp={!!isRsvp}
       onPress={onOpenPost}
       onUpvote={() => voteMutation.mutate(true)}
       onDownvote={() => voteMutation.mutate(false)}
@@ -469,6 +551,9 @@ function PostItemRow({
       onReport={onOptions}
       onOptions={onOptions}
       onPollVote={(idx) => pollVoteMutation.mutate(idx)}
+      onRsvp={() => rsvpMutation.mutate(!isRsvp)}
+      onBookmark={() => bookmarkMutation.mutate({ post, isBookmarked: !!isBookmarked })}
+      onShare={handleShare}
     />
   );
 }
@@ -605,6 +690,40 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   tabTextActive: {
+    fontWeight: '900',
+  },
+  channelScrollWrapper: {
+    marginVertical: 4,
+  },
+  channelScrollContent: {
+    paddingHorizontal: 14,
+    gap: 6,
+  },
+  channelChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: AnonUTheme.bgSurface,
+    borderColor: AnonUTheme.black,
+    borderWidth: AnonUTheme.borderWidthThin,
+    borderRadius: AnonUTheme.radiusSm,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  channelChipAllActive: {
+    backgroundColor: AnonUTheme.popYellow,
+    borderColor: AnonUTheme.black,
+  },
+  channelChipEmoji: {
+    fontSize: 13,
+    marginRight: 5,
+  },
+  channelChipText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: AnonUTheme.black,
+    letterSpacing: 0.3,
+  },
+  channelChipTextActive: {
     fontWeight: '900',
   },
   listContainer: {
