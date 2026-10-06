@@ -1,0 +1,30 @@
+appId: com.amirthesh.anonu
+---
+- launchApp
+# Verify Onboarding / Sign In screen is rendered
+- assertVisible: "ANONU"
+- assertVisible: "VERIFIED CAMPUS ANONYMITY"
+
+# Enter university .edu credentials
+- tapOn:
+    id: "email-input"
+- inputText: "student@uncc.edu"
+
+- tapOn:
+    id: "password-input"
+- inputText: "StudentPass123!"
+
+# Submit sign in / sign up
+- tapOn: "ENTER CAMPUS"
+
+# Verify 3-Screen Onboarding Rules Acceptance
+- assertVisible: "WELCOME TO UNCC"
+- tapOn: "NEXT: IDENTITY & EXPIRY"
+- assertVisible: "ZERO-KNOWLEDGE PRIVACY"
+- tapOn: "NEXT: HONOR CODE"
+- assertVisible: "COMMUNITY HONOR CODE"
+- tapOn: "ACCEPT & ENTER FEED"
+
+# Verify Campus Feed is displayed
+- assertVisible: "UNC CHARLOTTE"
+- assertVisible: "#GENERAL"

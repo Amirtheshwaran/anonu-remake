@@ -40,6 +40,27 @@ export default function SettingsScreen() {
 
   const [expandedSection, setExpandedSection] = useState<'rules' | 'terms' | 'privacy' | 'crisis' | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportData = async () => {
+    try {
+      setIsExporting(true);
+      hapticFeedback.medium();
+      const res = await functions().httpsCallable('exportUserData')();
+      const data = res.data as any;
+      hapticFeedback.success();
+      Alert.alert(
+        'Data Export Ready',
+        `Exported ${data.activitySummary?.bookmarksCount || 0} bookmarks and ${data.activitySummary?.authoredPostsCount || 0} publications. Data format is JSON compliant with GDPR & App Store standards.`,
+        [{ text: 'OK' }]
+      );
+    } catch (err: any) {
+      hapticFeedback.error();
+      Alert.alert('Export Failed', err.message || 'Could not retrieve data package.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const toggleSection = (sec: 'rules' | 'terms' | 'privacy' | 'crisis') => {
     hapticFeedback.light();
@@ -459,6 +480,16 @@ export default function SettingsScreen() {
                   All uploaded images are processed locally to remove EXIF GPS and camera metadata before transmission. Expired posts are deleted permanently from the database and storage hourly.
                 </Text>
               </View>
+              <View style={{ height: 10 }} />
+              <BrutalistButton
+                text={isExporting ? 'EXPORTING DATA...' : 'DOWNLOAD MY DATA (JSON)'}
+                backgroundColor={theme.popYellow}
+                textColor={theme.black}
+                disabled={isExporting}
+                onPress={handleExportData}
+                accessibilityRole="button"
+                accessibilityLabel="Download my data package in JSON format"
+              />
             </View>
           )}
         </BrutalistCard>

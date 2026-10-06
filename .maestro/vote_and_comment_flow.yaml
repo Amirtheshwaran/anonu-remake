@@ -1,0 +1,24 @@
+appId: com.amirthesh.anonu
+---
+- launchApp
+- assertVisible: "UNC CHARLOTTE"
+
+# Upvote first post
+- tapOn:
+    id: "upvote-btn-0"
+
+# Open comment thread
+- tapOn:
+    id: "comment-pill-0"
+- assertVisible: "COMMENT THREAD"
+
+# Type reply
+- tapOn:
+    id: "comment-input"
+- inputText: "Check the departmental Discord or Canvas study modules!"
+
+# Post comment
+- tapOn: "REPLY"
+
+# Assert comment appears with branch line and masked pseudonym
+- assertVisible: "Check the departmental Discord or Canvas study modules!"

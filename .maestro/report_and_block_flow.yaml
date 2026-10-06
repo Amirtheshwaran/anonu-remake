@@ -1,0 +1,25 @@
+appId: com.amirthesh.anonu
+---
+- launchApp
+- assertVisible: "UNC CHARLOTTE"
+
+# Open options on target post
+- tapOn:
+    id: "post-options-0"
+- assertVisible: "REPORT PUBLICATION"
+
+# Select violation reason
+- tapOn: "Harassment or Cyberbullying"
+- tapOn: "SUBMIT REPORT"
+- assertVisible: "REPORT SUBMITTED"
+- tapOn: "OK"
+
+# Block author anonymously
+- tapOn:
+    id: "post-options-0"
+- tapOn: "Block Author"
+- assertVisible: "BLOCK AUTHOR?"
+- tapOn: "CONFIRM BLOCK"
+
+# Verify post disappears immediately from blocker feed
+- assertNotVisible: "Does anyone have past exams for CS 3181 with Dr. Johnson?"
