@@ -19,10 +19,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
 
       - name: Install Dependencies
-        run: npm ci || npm install
+        run: npm install --legacy-peer-deps
 
       - name: TypeScript Strict Verification
         run: npm run typecheck
@@ -40,4 +39,4 @@ jobs:
         run: npm install -g firebase-tools
 
       - name: Run Firestore Security Rules Suite
-        run: npm run test:rules
+        run: npx firebase emulators:exec --only firestore "npm run test:rules"
