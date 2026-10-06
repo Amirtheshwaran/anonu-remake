@@ -19,4 +19,5 @@ export { recomputeActiveHotScores } from './scheduled/recomputeActiveHotScores';
 export { recomputeHotScores } from './callable/recomputeHotScores';
 export { rsvpEvent } from './callable/rsvpEvent';
 export { deleteAccount } from './callable/deleteAccount';
+export { exportUserData } from './callable/exportUserData';
 

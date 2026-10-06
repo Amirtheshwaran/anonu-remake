@@ -1,0 +1,28 @@
+appId: com.amirthesh.anonu
+---
+- launchApp
+- assertVisible: "UNC CHARLOTTE"
+
+# Open Post Composer
+- tapOn:
+    id: "fab-compose"
+- assertVisible: "NEW PUBLICATION"
+
+# Verify Identity is Anonymous by default
+- assertVisible: "ANON"
+
+# Select Channel
+- tapOn: "#CLASSES"
+
+# Enter Publication Content
+- tapOn:
+    id: "compose-input"
+- inputText: "Does anyone have past exams for CS 3181 with Dr. Johnson?"
+
+# Publish
+- tapOn: "PUBLISH ANONYMOUSLY"
+
+# Verify publication appears on feed
+- assertVisible: "Does anyone have past exams for CS 3181 with Dr. Johnson?"
+- assertVisible: "ANON"
+- assertVisible: "📚 #CLASSES"

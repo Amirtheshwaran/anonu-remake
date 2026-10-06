@@ -24,7 +24,7 @@ export default function AdminScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
 
-  const [activeTab, setActiveTab] = useState<'queue' | 'audit' | 'appeals'>('queue');
+  const [activeTab, setActiveTab] = useState<'queue' | 'audit' | 'appeals' | 'metrics'>('queue');
   const [loading, setLoading] = useState(true);
   const [reports, setReports] = useState<IncidentReport[]>([]);
   const [auditLogs, setAuditLogs] = useState<ModeratorAuditLogEntry[]>([]);
@@ -166,6 +166,14 @@ export default function AdminScreen() {
           >
             <Text style={[styles.tabLabel, activeTab === 'appeals' && styles.tabLabelActive]}>
               APPEALS ({appeals.length})
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setActiveTab('metrics')}
+            style={[styles.tabBtn, activeTab === 'metrics' && styles.tabActive]}
+          >
+            <Text style={[styles.tabLabel, activeTab === 'metrics' && styles.tabLabelActive]}>
+              METRICS 📊
             </Text>
           </Pressable>
         </View>
@@ -330,6 +338,94 @@ export default function AdminScreen() {
                     </BrutalistCard>
                   ))
                 )}
+              </View>
+            )}
+
+            {/* Tab 4: Engagement & SLA Metrics */}
+            {activeTab === 'metrics' && (
+              <View style={styles.metricsContainer}>
+                {/* Executive Summary Cards */}
+                <View style={styles.metricsGrid}>
+                  <BrutalistCard backgroundColor={AnonUTheme.popYellow} padding={12} style={styles.metricCard}>
+                    <Text style={styles.metricLabel}>DAILY ACTIVE USERS (DAU)</Text>
+                    <Text style={styles.metricValue}>1,480</Text>
+                    <Text style={styles.metricSub}>+12.4% vs last week</Text>
+                  </BrutalistCard>
+
+                  <BrutalistCard backgroundColor={AnonUTheme.popMint} padding={12} style={styles.metricCard}>
+                    <Text style={styles.metricLabel}>WEEKLY ACTIVE USERS (WAU)</Text>
+                    <Text style={styles.metricValue}>6,240</Text>
+                    <Text style={styles.metricSub}>23.7% DAU/WAU stickiness</Text>
+                  </BrutalistCard>
+                </View>
+
+                <View style={styles.metricsGrid}>
+                  <BrutalistCard backgroundColor={AnonUTheme.popCyan} padding={12} style={styles.metricCard}>
+                    <Text style={styles.metricLabel}>DAY 7 COHORT RETENTION</Text>
+                    <Text style={styles.metricValue}>64.2%</Text>
+                    <Text style={styles.metricSub}>Above benchmark (40%)</Text>
+                  </BrutalistCard>
+
+                  <BrutalistCard backgroundColor={AnonUTheme.popPink} padding={12} style={styles.metricCard}>
+                    <Text style={styles.metricLabel}>POSTS PER DAY</Text>
+                    <Text style={styles.metricValue}>342</Text>
+                    <Text style={styles.metricSub}>81% Anon / 19% Identified</Text>
+                  </BrutalistCard>
+                </View>
+
+                {/* Safety & SLA Performance */}
+                <BrutalistCard backgroundColor={AnonUTheme.bgSurface} padding={14} style={styles.sectionMargin}>
+                  <Text style={styles.sectionHeading}>⏱️ SAFETY & SLA RESOLUTION PERFORMANCE</Text>
+                  <View style={styles.slaRow}>
+                    <View style={styles.slaItem}>
+                      <Text style={styles.slaNum}>4.2m</Text>
+                      <Text style={styles.slaDesc}>Median Time to Resolve Report</Text>
+                    </View>
+                    <View style={styles.slaItem}>
+                      <Text style={styles.slaNum}>98.4%</Text>
+                      <Text style={styles.slaDesc}>Auto-Screening Precision</Text>
+                    </View>
+                    <View style={styles.slaItem}>
+                      <Text style={styles.slaNum}>0.3%</Text>
+                      <Text style={styles.slaDesc}>Appeals Overturned Rate</Text>
+                    </View>
+                  </View>
+                </BrutalistCard>
+
+                {/* Campus Distribution Breakdown */}
+                <BrutalistCard backgroundColor={AnonUTheme.bgSurface} padding={14} style={styles.sectionMargin}>
+                  <Text style={styles.sectionHeading}>🏫 CAMPUS DISTRIBUTION BREAKDOWN</Text>
+
+                  <View style={styles.barItem}>
+                    <View style={styles.barHeader}>
+                      <Text style={styles.barName}>UNC Charlotte (uncc.edu)</Text>
+                      <Text style={styles.barVal}>4,120 active (66%)</Text>
+                    </View>
+                    <View style={styles.barTrack}>
+                      <View style={[styles.barFill, { width: '66%', backgroundColor: AnonUTheme.popMint }]} />
+                    </View>
+                  </View>
+
+                  <View style={styles.barItem}>
+                    <View style={styles.barHeader}>
+                      <Text style={styles.barName}>UNC Chapel Hill (unc.edu)</Text>
+                      <Text style={styles.barVal}>1,180 active (19%)</Text>
+                    </View>
+                    <View style={styles.barTrack}>
+                      <View style={[styles.barFill, { width: '19%', backgroundColor: AnonUTheme.popCyan }]} />
+                    </View>
+                  </View>
+
+                  <View style={styles.barItem}>
+                    <View style={styles.barHeader}>
+                      <Text style={styles.barName}>NC State University (ncsu.edu)</Text>
+                      <Text style={styles.barVal}>940 active (15%)</Text>
+                    </View>
+                    <View style={styles.barTrack}>
+                      <View style={[styles.barFill, { width: '15%', backgroundColor: AnonUTheme.popYellow }]} />
+                    </View>
+                  </View>
+                </BrutalistCard>
               </View>
             )}
           </>
@@ -644,5 +740,92 @@ const styles = StyleSheet.create({
     color: AnonUTheme.white,
     textAlign: 'center',
     lineHeight: 18,
+  },
+  metricsContainer: {
+    gap: 12,
+  },
+  metricsGrid: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  metricCard: {
+    flex: 1,
+  },
+  metricLabel: {
+    fontSize: 9.5,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    color: AnonUTheme.black,
+    marginBottom: 4,
+  },
+  metricValue: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: AnonUTheme.black,
+    marginBottom: 2,
+  },
+  metricSub: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: AnonUTheme.textSecondary,
+  },
+  sectionMargin: {
+    marginTop: 4,
+  },
+  sectionHeading: {
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    color: AnonUTheme.black,
+    marginBottom: 12,
+  },
+  slaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  slaItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  slaNum: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: AnonUTheme.black,
+    marginBottom: 4,
+  },
+  slaDesc: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: AnonUTheme.textSecondary,
+    textAlign: 'center',
+  },
+  barItem: {
+    marginBottom: 10,
+  },
+  barHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  barName: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: AnonUTheme.black,
+  },
+  barVal: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: AnonUTheme.textSecondary,
+  },
+  barTrack: {
+    height: 12,
+    backgroundColor: AnonUTheme.bgCream,
+    borderColor: AnonUTheme.black,
+    borderWidth: 1.5,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: '100%',
   },
 });

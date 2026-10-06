@@ -239,18 +239,46 @@ npm run migrate:dry
 npm run migrate:live
 ```
 
-### 5. Launch the App
+### 5. Running Testing & Quality Suites
 
 ```bash
-# Start Expo development server
-npx expo start
+# Run unit test suite (64 tests across 6 suites)
+npm run test:unit
 
-# Run on Android development build
-npx expo run:android
+# Run TypeScript strict typecheck
+npm run typecheck
 
-# Run on iOS development build
-npx expo run:ios
+# Run Maestro E2E automated test flows
+maestro test .maestro/sign_up_flow.yaml
+maestro test .maestro/anonymous_post_flow.yaml
+maestro test .maestro/vote_and_comment_flow.yaml
+maestro test .maestro/report_and_block_flow.yaml
+maestro test .maestro/account_deletion_flow.yaml
 ```
+
+### 6. EAS Build & OTA Deployment
+
+AnonU is configured with EAS build profiles in `eas.json` and GitHub Actions:
+
+- **Development**: Internal distribution with development client enabled.
+- **Preview**: Internal release build distributed to campus beta testers.
+- **Production**: App Store & Google Play release bundle (`aab`/`ipa`) with automated version incrementing.
+- **EAS Update**: Instant zero-downtime OTA patch delivery over channels `development`, `preview`, `production`.
+
+---
+
+## App Store & Google Play Compliance
+
+AnonU meets all standard Apple & Google UGC and data privacy requirements:
+
+1. **In-App Account Deletion (Apple Guideline 5.1.1(v))**:
+   Accessible via `Settings -> Danger Zone`. Irreversibly purges authentication credentials, university email records, bookmarks, and private user collections via Cloud Function `deleteAccount`.
+2. **UGC Screening & Reporting**:
+   Automated regex screening for PII (phone numbers, student IDs, dorm addresses), toxicity classification, 1-tap post reporting, and server-side anonymous blocking.
+3. **GDPR Data Portability**:
+   1-tap in-app data export (`exportUserData`) generating a clean JSON package of all student activity.
+4. **WCAG 2.1 AA Accessibility**:
+   Contrast ratios exceeding 15:1 for body text, 44pt minimum touch target sizes (`hitSlop`), screen reader accessibility attributes, and reduced motion toggles.
 
 ---
 

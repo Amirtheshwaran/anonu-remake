@@ -1,0 +1,23 @@
+appId: com.amirthesh.anonu
+---
+- launchApp
+
+# Navigate to Settings
+- tapOn:
+    id: "settings-icon"
+- assertVisible: "SETTINGS & SAFETY"
+
+# Scroll to Danger Zone
+- scrollUntilVisible:
+    element: "DELETE ACCOUNT & ALL DATA"
+    direction: DOWN
+
+# Tap Delete Account
+- tapOn: "DELETE ACCOUNT & ALL DATA"
+
+# Assert App Store 5.1.1(v) prompt
+- assertVisible: "Delete Account Permanently?"
+- tapOn: "Delete Forever"
+
+# Assert redirection to Enter Campus / Onboarding screen
+- assertVisible: "ENTER CAMPUS"
