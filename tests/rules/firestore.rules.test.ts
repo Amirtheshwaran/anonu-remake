@@ -178,7 +178,7 @@ describe('AnonU Firestore Security Rules', () => {
   });
 
   it('clients cannot create notifications directly', async () => {
-    const authedDb = testEnv.authenticatedContext('user_123', { email_verified: true }).firestore();
+    const authedDb = testEnv.authenticatedContext('user_notif_creator', { email_verified: true }).firestore();
     await assertFails(
       authedDb.collection('notifications').add({
         recipientUid: 'target_user',
@@ -189,19 +189,20 @@ describe('AnonU Firestore Security Rules', () => {
 
   it('users can only read notifications intended for them', async () => {
     await testEnv.withSecurityRulesDisabled(async (adminContext) => {
-      await adminContext.firestore().collection('notifications').doc('notif_1').set({
-        recipientUid: 'user_123',
+      const adminDb = adminContext.firestore();
+      await adminDb.collection('notifications').doc('notif_1').set({
+        recipientUid: 'user_recipient_456',
         message: 'Your post was upvoted',
         isRead: false,
       });
-      await adminContext.firestore().collection('notifications').doc('notif_2').set({
-        recipientUid: 'other_user',
+      await adminDb.collection('notifications').doc('notif_2').set({
+        recipientUid: 'other_user_789',
         message: 'Other alert',
         isRead: false,
       });
     });
 
-    const authedDb = testEnv.authenticatedContext('user_123', { email_verified: true }).firestore();
+    const authedDb = testEnv.authenticatedContext('user_recipient_456', { email_verified: true }).firestore();
     await assertSucceeds(
       authedDb.collection('notifications').doc('notif_1').get()
     );
@@ -212,16 +213,17 @@ describe('AnonU Firestore Security Rules', () => {
 
   it('moderators can read reports, regular users cannot', async () => {
     await testEnv.withSecurityRulesDisabled(async (adminContext) => {
-      await adminContext.firestore().collection('reports').doc('report_1').set({
+      const adminDb = adminContext.firestore();
+      await adminDb.collection('reports').doc('report_1').set({
         reason: 'Spam',
         postId: 'post_1',
       });
     });
 
-    const regularDb = testEnv.authenticatedContext('user_123', { email_verified: true }).firestore();
+    const regularDb = testEnv.authenticatedContext('regular_user_999', { email_verified: true }).firestore();
     await assertFails(regularDb.collection('reports').doc('report_1').get());
 
-    const modDb = testEnv.authenticatedContext('mod_user', { email_verified: true, moderator: true }).firestore();
+    const modDb = testEnv.authenticatedContext('mod_user_888', { email_verified: true, isModerator: true, moderator: true }).firestore();
     await assertSucceeds(modDb.collection('reports').doc('report_1').get());
   });
 });
