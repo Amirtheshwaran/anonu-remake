@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { AnonUTheme } from '../constants/theme';
+import { hapticFeedback } from '../utils/haptics';
 
 interface BrutalistButtonProps {
   text?: string;
@@ -27,6 +28,10 @@ interface BrutalistButtonProps {
   style?: StyleProp<ViewStyle>;
   paddingVertical?: number;
   paddingHorizontal?: number;
+  accessibilityRole?: any;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
+  minHeight?: number;
 }
 
 export const BrutalistButton: React.FC<BrutalistButtonProps> = ({
@@ -45,21 +50,26 @@ export const BrutalistButton: React.FC<BrutalistButtonProps> = ({
   style,
   paddingVertical = 10,
   paddingHorizontal = 16,
+  accessibilityRole = 'button',
+  accessibilityLabel,
+  accessibilityHint,
+  minHeight = 44,
 }) => {
   const isEnabled = !disabled && !isLoading && !!onPress;
 
   const handlePress = () => {
     if (!isEnabled) return;
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch {
-      // Ignore if haptics unsupported
-    }
+    hapticFeedback.light();
     onPress?.();
   };
 
   return (
     <Pressable
+      accessibilityRole={accessibilityRole}
+      accessibilityLabel={accessibilityLabel || text}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled: !isEnabled, busy: isLoading }}
+      hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
       onPress={handlePress}
       disabled={!isEnabled}
       style={[
